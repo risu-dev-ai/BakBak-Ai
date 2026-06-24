@@ -1,0 +1,171 @@
+/* ============================================================
+   BakBak Chat - Global Stylesheet (Gemini Glassmorphic Theme)
+   File: frontend/src/index.css
+   ============================================================ */
+
+/* ── Google Fonts Import ────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS Variables ────────────────────────────────────── */
+:root {
+  --wa-teal: #0d111d;
+  --wa-teal-dark: #06080e;
+  --wa-green: #00e5ff;
+  --wa-light: rgba(0, 229, 255, 0.15);
+  --wa-blue: #00b0ff;
+  --wa-bg: #06080e;
+  --wa-input-bg: rgba(255, 255, 255, 0.05);
+  --wa-header: #0d111d;
+  --wa-bubble-sent: rgba(0, 229, 255, 0.15);
+  --wa-bubble-received: rgba(255, 255, 255, 0.08);
+  --wa-chat-bg: #06080e;
+}
+
+/* ── Base Styles ────────────────────────────────────── */
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply font-sans antialiased text-white bg-wa-bg;
+    overscroll-behavior: none;
+    background-image: 
+      radial-gradient(circle at 10% 20%, rgba(79, 172, 254, 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(127, 0, 255, 0.08) 0%, transparent 40%);
+    background-attachment: fixed;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* ── Component Styles ─────────────────────────────────── */
+@layer components {
+  /* WhatsApp-style header bar */
+  .wa-header {
+    @apply bg-wa-teal/70 backdrop-blur-xl border-b border-white/5 text-white px-4 py-3 flex items-center shadow-wa;
+  }
+
+  /* Input field (WhatsApp style) */
+  .wa-input {
+    @apply w-full px-4 py-2.5 rounded-full bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-primary-500 focus:bg-white/10 transition-all;
+  }
+
+  /* Chat bubble base with Glassmorphism */
+  .bubble-sent {
+    @apply bg-wa-light/85 backdrop-blur-md text-white rounded-2xl rounded-tr-sm px-3.5 py-2 relative shadow-wa max-w-[80%] ml-auto border border-white/10;
+  }
+  .bubble-received {
+    @apply bg-white/5 backdrop-blur-md text-white rounded-2xl rounded-tl-sm px-3.5 py-2 relative shadow-wa max-w-[80%] mr-auto border border-white/5;
+  }
+
+  /* Bottom Navigation - Floating Capsule Redesign */
+  .bottom-nav {
+    @apply fixed bottom-4 left-4 right-4 rounded-full bg-wa-teal/80 backdrop-blur-xl border border-white/10 flex items-center justify-around py-1 z-50 shadow-wa-lg safe-bottom;
+  }
+  .bottom-nav-item {
+    @apply flex flex-col items-center gap-0.5 py-1 px-3 text-white/50 hover:text-white/90 active:scale-95 transition-all;
+  }
+  .bottom-nav-item.active {
+    @apply text-primary-500 font-semibold;
+  }
+
+  /* Card style */
+  .wa-card {
+    @apply bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl shadow-wa;
+  }
+
+  /* List item hover */
+  .wa-list-item {
+    @apply flex items-center gap-3 px-4 py-3 hover:bg-white/5 active:bg-white/10 border-b border-white/5 transition-all cursor-pointer;
+  }
+
+  /* Badge */
+  .wa-badge {
+    @apply min-w-[20px] h-5 px-1.5 flex items-center justify-center text-[10px] font-bold rounded-full bg-primary-500 text-wa-teal-dark shadow-glass-glow;
+  }
+
+  /* Ticks */
+  .tick-sent { @apply text-white/30; }
+  .tick-delivered { @apply text-white/50; }
+  .tick-read { @apply text-primary-500; }
+
+  /* Status dot */
+  .status-online {
+    @apply w-2.5 h-2.5 rounded-full bg-online border border-wa-teal;
+  }
+
+  /* Hide scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Mirror local video */
+  .mirror {
+    transform: scaleX(-1);
+  }
+
+  /* Safe area for bottom nav */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Page with bottom nav */
+  .page-with-nav {
+    @apply pb-24;
+  }
+
+  /* Gemini Dark Space Background */
+  .wa-chat-bg {
+    background-color: #06080e;
+    background-image: 
+      radial-gradient(circle at 10% 20%, rgba(0, 229, 255, 0.03) 0%, transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(138, 35, 135, 0.03) 0%, transparent 40%);
+  }
+
+  /* Story ring gradient */
+  .story-ring {
+    @apply rounded-full p-[2px] bg-gradient-to-br from-primary-500 to-wa-blue;
+  }
+  .story-ring-empty {
+    @apply rounded-full p-[2px] border-2 border-dashed border-white/20;
+  }
+
+  /* Glassmorphism Panel helper */
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-wa;
+  }
+  .glass-panel-light {
+    @apply bg-white/10 backdrop-blur-lg border border-white/20;
+  }
+  .glass-button {
+    @apply bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 rounded-xl px-4 py-2.5 transition-all text-white font-medium flex items-center justify-center gap-1.5;
+  }
+}
