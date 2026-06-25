@@ -26,9 +26,35 @@ const app = express();
 const httpServer = http.createServer(app);
 
 // ── Socket.io Setup ───────────────────────────────────────────
+// ── CORS Origin Helper ────────────────────────────────────────
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://bak-bak-chat.vercel.app',
+];
+if (process.env.CLIENT_URL) {
+  const envOrigins = process.env.CLIENT_URL.split(',').map(o => o.trim().replace(/\/$/, ''));
+  allowedOrigins.push(...envOrigins);
+}
+
+const checkOrigin = (origin, callback) => {
+  if (!origin) return callback(null, true);
+  
+  const normalizedOrigin = origin.replace(/\/$/, '');
+  const isAllowed = allowedOrigins.some(allowed => normalizedOrigin === allowed);
+  
+  if (isAllowed || normalizedOrigin.endsWith('.vercel.app')) {
+    callback(null, true);
+  } else {
+    console.warn(`⚠️ Blocked by CORS: ${origin}`);
+    callback(null, false); // Block origin but don't crash server with uncaught exception
+  }
+};
+
+// ── Socket.io Setup ───────────────────────────────────────────
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: checkOrigin,
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -44,7 +70,7 @@ app.use(helmet()); // Sets security HTTP headers
 // ── CORS Configuration ────────────────────────────────────────
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: checkOrigin,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
