@@ -30,6 +30,9 @@ const httpServer = http.createServer(app);
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
+  'http://localhost',
+  'https://localhost',
+  'capacitor://localhost',
   'https://bak-bak-chat.vercel.app',
 ];
 if (process.env.CLIENT_URL) {

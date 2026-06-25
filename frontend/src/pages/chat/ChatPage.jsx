@@ -15,6 +15,7 @@ import mediaService from '@/services/mediaService'
 import userService from '@/services/userService'
 import Avatar from '@/components/ui/Avatar'
 import CachedImage from '@/components/ui/CachedImage'
+import Logo from '@/components/ui/Logo'
 import { getSocket } from '@/lib/socket'
 import { decryptForMe } from '@/lib/crypto'
 
@@ -774,7 +775,7 @@ export default function ChatPage() {
                 <h2 className="mt-3 text-xl font-bold text-white">{selectedFriendProfile.displayName || selectedFriendProfile.username}</h2>
                 <p className="text-xs text-primary-500 font-semibold mt-0.5">@{selectedFriendProfile.username}</p>
                 <p className="text-white/60 text-sm mt-3.5 px-4 italic border-l-2 border-primary-500/50">
-                  "{selectedFriendProfile.bio || 'Hey there! I am using Anti-Gravity.'}"
+                  "{selectedFriendProfile.bio || 'Hey there! I am using BakBak Chat.'}"
                 </p>
               </div>
 
@@ -823,10 +824,8 @@ export default function ChatPage() {
       <div className="bg-wa-teal/60 backdrop-blur-xl text-white px-4 pt-4 pb-3 border-b border-white/5 flex-shrink-0 z-10">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-500 to-wa-blue flex items-center justify-center shadow-glass-glow">
-              <span className="text-sm font-bold text-wa-teal-dark">💬</span>
-            </div>
-            <h1 className="text-lg font-display font-bold tracking-tight">Anti-Gravity</h1>
+            <Logo size={32} variant="gradient" />
+            <h1 className="text-lg font-display font-bold tracking-tight">BakBak Chat</h1>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => navigate('/settings')} className="p-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 active:scale-95 transition-all">

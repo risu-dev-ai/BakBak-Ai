@@ -12,6 +12,7 @@ import useAuthStore from '@/store/authStore'
 import { connectSocket } from '@/lib/socket'
 import { generateKeyPair } from '@/lib/crypto'
 import Input from '@/components/ui/Input'
+import Logo from '@/components/ui/Logo'
 
 const steps = ['Account', 'Profile', 'Security']
 
@@ -162,9 +163,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md glass-panel p-8 rounded-3xl animate-bounce-in border border-white/10 shadow-wa-lg z-10">
         {/* Logo / Header */}
         <div className="text-center mb-6">
-          <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-primary-500 to-wa-blue flex items-center justify-center shadow-glass-glow">
-            <span className="text-white font-display font-bold text-2xl">B</span>
-          </div>
+          <Logo size={56} variant="gradient" className="mb-3 filter drop-shadow-lg" />
           <h1 className="text-2xl font-display font-bold text-white tracking-tight">Create Account</h1>
           <p className="text-white/40 text-xs mt-1.5 font-medium uppercase tracking-wider">Premium E2EE Chat client</p>
         </div>

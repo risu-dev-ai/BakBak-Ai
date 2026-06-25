@@ -252,7 +252,7 @@ export default function ProfilePage() {
   }
 
   const displayName = user?.displayName || user?.username || 'User'
-  const statusText = user?.statusText || 'Hey there! I am using Anti-Gravity.'
+  const statusText = user?.statusText || 'Hey there! I am using BakBak Chat.'
 
   return (
     <div className="min-h-screen bg-wa-bg page-with-nav relative overflow-hidden">
@@ -363,7 +363,7 @@ export default function ProfilePage() {
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-primary-500 resize-none"
               />
             ) : (
-              <p className="text-sm text-white/70 italic">"{user?.bio || 'Hey there! I am using Anti-Gravity.'}"</p>
+              <p className="text-sm text-white/70 italic">"{user?.bio || 'Hey there! I am using BakBak Chat.'}"</p>
             )}
           </div>
 

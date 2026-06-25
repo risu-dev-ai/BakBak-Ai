@@ -12,6 +12,7 @@ import useAuthStore from '@/store/authStore'
 import { connectSocket } from '@/lib/socket'
 import { generateKeyPair, hasKeyPair, getStoredPublicKey } from '@/lib/crypto'
 import Input from '@/components/ui/Input'
+import Logo from '@/components/ui/Logo'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -159,10 +160,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md glass-panel p-8 rounded-3xl animate-bounce-in border border-white/10 shadow-wa-lg z-10">
         {/* Logo / Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary-500 to-wa-blue flex items-center justify-center shadow-glass-glow animate-pulse-ring">
-            <span className="text-white font-display font-bold text-3xl">B</span>
-          </div>
-          <h1 className="text-2xl font-display font-bold text-white tracking-tight">Anti-Gravity Chat</h1>
+          <Logo size={64} variant="gradient" className="mb-4 filter drop-shadow-lg" />
+          <h1 className="text-2xl font-display font-bold text-white tracking-tight">BakBak Chat</h1>
           <p className="text-white/40 text-xs mt-1.5 font-medium uppercase tracking-wider">Premium E2EE Chat client</p>
         </div>
 

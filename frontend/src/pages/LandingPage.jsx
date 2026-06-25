@@ -5,6 +5,7 @@
 
 import React from 'react'
 import { Link } from 'react-router-dom'
+import Logo from '@/components/ui/Logo'
 
 export default function LandingPage() {
   return (
@@ -15,9 +16,7 @@ export default function LandingPage() {
       {/* Content */}
       <div className="relative z-10 text-center max-w-md animate-fade-in">
         {/* Logo */}
-        <div className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-white flex items-center justify-center shadow-wa-lg">
-          <span className="text-wa-teal font-display font-bold text-4xl">B</span>
-        </div>
+        <Logo size={96} variant="gradient" className="mb-6 filter drop-shadow-md" />
 
         <h1 className="text-4xl md:text-5xl font-display font-bold mb-3">
           <span className="text-white">BakBak</span>
