@@ -17,14 +17,23 @@ export const connectSocket = (token) => {
 
   socket = io(import.meta.env.VITE_SOCKET_URL || '/', {
     auth: { token },
-    transports: ['websocket', 'polling'],
+    transports: ['websocket'],
+    reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
   })
 
+  let heartbeatInterval = null
+
   socket.on('connect', () => {
     console.log('🔌 Socket connected:', socket.id)
+    if (heartbeatInterval) clearInterval(heartbeatInterval)
+    heartbeatInterval = setInterval(() => {
+      if (socket?.connected) {
+        socket.emit('heartbeat', { ts: Date.now() })
+      }
+    }, 15000)
   })
 
   socket.on('connect_error', (err) => {
@@ -33,6 +42,10 @@ export const connectSocket = (token) => {
 
   socket.on('disconnect', (reason) => {
     console.log('❌ Socket disconnected:', reason)
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval)
+      heartbeatInterval = null
+    }
   })
 
   return socket
