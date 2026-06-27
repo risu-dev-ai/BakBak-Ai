@@ -238,3 +238,65 @@ exports.checkContact = async (req, res) => {
     });
   }
 };
+
+// @desc    Sync local address book contacts with database
+// @route   POST /api/v1/contacts/sync
+// @access  Private
+exports.syncContacts = async (req, res) => {
+  try {
+    const { contacts } = req.body; // array of { name, phone }
+    if (!contacts || !Array.isArray(contacts)) {
+      return res.status(400).json({ success: false, message: 'Contacts array is required' });
+    }
+
+    const syncedList = [];
+
+    for (const item of contacts) {
+      if (!item.phone) continue;
+      const cleaned = item.phone.replace(/\D/g, '');
+      if (cleaned.length < 10) continue;
+      const last10 = cleaned.slice(-10);
+
+      // Find user by phone suffix match
+      const matchedUser = await User.findOne({
+        phone: new RegExp(last10 + '$'),
+        _id: { $ne: req.user._id } // Don't add yourself
+      });
+
+      if (matchedUser) {
+        // See if already a contact
+        let contactDoc = await Contact.findOne({
+          owner: req.user._id,
+          contact: matchedUser._id
+        });
+
+        if (!contactDoc) {
+          contactDoc = await Contact.create({
+            owner: req.user._id,
+            contact: matchedUser._id,
+            nickname: item.name || matchedUser.displayName || matchedUser.username,
+            addedVia: 'phone'
+          });
+        }
+
+        const populated = await Contact.findById(contactDoc._id).populate(
+          'contact',
+          'username displayName avatar phone email isOnline lastSeen statusText bio'
+        );
+
+        syncedList.push(populated);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: syncedList
+    });
+  } catch (error) {
+    console.error('syncContacts error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while syncing contacts'
+    });
+  }
+};

@@ -90,6 +90,21 @@ const useContactStore = create((set, get) => ({
       throw new Error(err.response?.data?.message || err.message || 'Failed to toggle block status');
     }
   },
+
+  /** Sync local address book contacts */
+  syncContacts: async (localContacts) => {
+    try {
+      const res = await contactService.syncContacts(localContacts);
+      if (res.success && res.data) {
+        // Refetch contacts to get the clean populated list sorted
+        await get().fetchContacts();
+        return res.data;
+      }
+      return [];
+    } catch (err) {
+      throw new Error(err.response?.data?.message || err.message || 'Failed to sync contacts');
+    }
+  },
 }));
 
 export default useContactStore;

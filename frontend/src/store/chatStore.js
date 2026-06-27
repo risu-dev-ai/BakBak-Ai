@@ -218,6 +218,29 @@ const useChatStore = create((set, get) => ({
     }
   },
 
+  editMessage: async (messageId, encryptedContent) => {
+    try {
+      const response = await chatService.editMessage(messageId, encryptedContent)
+      if (response.success) {
+        const activeChat = get().activeChat
+        if (activeChat) {
+          set((state) => ({
+            messages: {
+              ...state.messages,
+              [activeChat._id]: (state.messages[activeChat._id] || []).map((m) =>
+                m._id === messageId
+                  ? { ...m, isEdited: true, encryptedContent }
+                  : m
+              ),
+            },
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('Failed to edit message:', error)
+    }
+  },
+
   updateLastMessage: (chatId, message) =>
     set((state) => ({
       chats: state.chats.map((c) =>
@@ -260,10 +283,68 @@ const useChatStore = create((set, get) => ({
   initializeSocketListeners: (socket) => {
     if (!socket || get().socketListenersRegistered) return
 
+    // Socket reconnect / sync logic
+    socket.on('connect', () => {
+      console.log('🔌 Socket connected/reconnected. Syncing data...')
+      get().fetchChats()
+      const activeChat = get().activeChat
+      if (activeChat) {
+        get().fetchMessages(activeChat._id)
+      }
+    })
+
     // Message received (for active chat screen)
-    socket.on('message:receive', (message) => {
+    socket.on('message:receive', async (message) => {
       const { activeChat } = get()
       const chatId = message.chat
+
+      // Trigger Local Notification if not on this active chat
+      if (!activeChat || activeChat._id !== chatId) {
+        try {
+          const { LocalNotifications } = await import('@capacitor/local-notifications')
+          // Check permissions
+          let permStatus = await LocalNotifications.checkPermissions()
+          if (permStatus.display === 'prompt') {
+            permStatus = await LocalNotifications.requestPermissions()
+          }
+          if (permStatus.display === 'granted') {
+            const useAuthStore = (await import('@/store/authStore')).default
+            const selfUser = useAuthStore.getState().user
+            const myEnc = message.encryptedContent?.find(c => c.recipientId === selfUser?._id)
+            let bodyText = 'New message'
+            if (message.messageType === 'text') {
+              if (myEnc) {
+                if (myEnc.iv === '__PLAINTEXT__' || myEnc.iv === 'mock_iv_phase_3') {
+                  bodyText = myEnc.ciphertext
+                } else {
+                  try {
+                    const { decryptForMe } = await import('@/lib/crypto')
+                    bodyText = await decryptForMe(message.encryptedContent, message.sender?.publicKey, selfUser?._id)
+                  } catch {
+                    bodyText = '🔐 Encrypted message'
+                  }
+                }
+              }
+            } else {
+              bodyText = `New ${message.messageType} message`
+            }
+
+            await LocalNotifications.schedule({
+              notifications: [
+                {
+                  title: message.sender?.displayName || message.sender?.username || 'BakBak Chat',
+                  body: bodyText,
+                  id: new Date().getTime(),
+                  schedule: { at: new Date(Date.now() + 100) },
+                  channelId: 'bakbak-chat-messages',
+                },
+              ],
+            })
+          }
+        } catch (err) {
+          console.warn('Local Notifications not available:', err)
+        }
+      }
 
       // Add message to chat list
       set((state) => {
@@ -306,6 +387,21 @@ const useChatStore = create((set, get) => ({
           [chatId]: (state.messages[chatId] || []).map((m) =>
             m._id === messageId
               ? { ...m, isDeleted: true, deleteType: 'everyone', encryptedContent: [], media: null }
+              : m
+          ),
+        },
+      }))
+    })
+
+    // Message edited
+    socket.on('message:edited', (editedMessage) => {
+      const chatId = editedMessage.chat
+      set((state) => ({
+        messages: {
+          ...state.messages,
+          [chatId]: (state.messages[chatId] || []).map((m) =>
+            m._id === editedMessage._id
+              ? editedMessage
               : m
           ),
         },
@@ -402,6 +498,7 @@ const useChatStore = create((set, get) => ({
   cleanupSocketListeners: (socket) => {
     if (!socket || !get().socketListenersRegistered) return
 
+    socket.off('connect')
     socket.off('message:receive')
     socket.off('chat:update')
     socket.off('message:deleted')

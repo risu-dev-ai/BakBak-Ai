@@ -153,7 +153,11 @@ const MessageSchema = new mongoose.Schema(
       },
     ],
 
-    // ── Deletion ──────────────────────────────────────────────
+    // ── Edit & Deletion ───────────────────────────────────────
+    isEdited: {
+      type: Boolean,
+      default: false,
+    },
     isDeleted: {
       type: Boolean,
       default: false,

@@ -46,6 +46,21 @@ exports.createStory = async (req, res, next) => {
     const story = await Story.create(storyData);
     const populated = await Story.findById(story._id).populate('author', 'username displayName avatar');
 
+    // Emit socket event to followers/mutual contacts who have this author saved
+    const io = req.app.get('io');
+    if (io) {
+      try {
+        const followers = await Contact.find({ contact: req.user._id });
+        followers.forEach(follower => {
+          io.to(follower.owner.toString()).emit('story:new', populated);
+        });
+        // Also emit to the author's other devices
+        io.to(req.user._id.toString()).emit('story:new', populated);
+      } catch (err) {
+        console.error('Failed to broadcast new story socket:', err.message);
+      }
+    }
+
     res.status(201).json({ success: true, data: populated });
   } catch (error) {
     next(error);

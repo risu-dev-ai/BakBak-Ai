@@ -137,17 +137,22 @@ const socketHandler = (io) => {
     socket.on('disconnect', async (reason) => {
       console.log(`❌ Socket disconnected: ${socket.user.username} — Reason: ${reason}`);
 
-      // Mark user as offline and update lastSeen
-      await User.findByIdAndUpdate(socket.user._id, {
-        isOnline: false,
-        lastSeen: new Date(),
-      });
+      const userRoom = socket.user._id.toString();
+      const activeSockets = await io.in(userRoom).fetchSockets();
 
-      // Broadcast offline status
-      io.emit('user:offline', {
-        userId: socket.user._id,
-        lastSeen: new Date(),
-      });
+      if (activeSockets.length === 0) {
+        // Mark user as offline and update lastSeen
+        await User.findByIdAndUpdate(socket.user._id, {
+          isOnline: false,
+          lastSeen: new Date(),
+        });
+
+        // Broadcast offline status
+        io.emit('user:offline', {
+          userId: socket.user._id,
+          lastSeen: new Date(),
+        });
+      }
     });
 
     // ── Error Handler ─────────────────────────────────────────

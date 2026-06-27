@@ -41,6 +41,12 @@ const contactService = {
     const res = await api.get(`/contacts/check/${userId}`);
     return res.data;
   },
+
+  /** Sync address book contacts */
+  syncContacts: async (contacts) => {
+    const res = await api.post('/contacts/sync', { contacts });
+    return res.data;
+  },
 };
 
 export default contactService;

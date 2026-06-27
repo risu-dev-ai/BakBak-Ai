@@ -14,7 +14,7 @@ export default {
           200: '#80deea',
           300: '#4dd0e1',
           400: '#26c6da',
-          500: '#00e5ff', // Glowing Cyan
+          500: 'var(--wa-green)',
           600: '#00b8d4',
           700: '#00838f',
           800: '#006064',
@@ -22,17 +22,16 @@ export default {
           950: '#002d2d',
         },
         wa: {
-          // Re-mapped to support dark theme globally with minimal refactoring
-          teal:      '#0d111d',       // Header / dark panel
-          'teal-dark': '#06080e',     // Darkest elements
-          green:     '#00e5ff',       // Accent cyan glow
-          light:     'rgba(0, 229, 255, 0.12)', // Sent bubble glassy cyan
-          blue:      '#8a2387',       // Purple accents
-          bg:        '#06080e',       // Dark background
-          header:    '#0c101b',
-          input:     'rgba(255, 255, 255, 0.05)',
+          teal:      'var(--wa-teal)',
+          'teal-dark': 'var(--wa-teal-dark)',
+          green:     'var(--wa-green)',
+          light:     'var(--wa-light)',
+          blue:      'var(--wa-blue)',
+          bg:        'var(--wa-bg)',
+          header:    'var(--wa-header)',
+          input:     'var(--wa-input-bg)',
         },
-        online:  '#00e5ff',
+        online:  'var(--wa-green)',
         offline: '#374151',
         away:    '#f59e0b',
         missed:  '#f87171',

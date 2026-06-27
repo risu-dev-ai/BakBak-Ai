@@ -17,6 +17,7 @@ const messageRoutes = require('./message.routes');
 const storyRoutes = require('./story.routes');
 const contactRoutes = require('./contactRoutes');
 const adminRoutes = require('./admin.routes');
+const callRoutes = require('./call.routes');
 
 // ── Mount Routes ──────────────────────────────────────────────
 router.use('/auth', authRoutes);
@@ -26,6 +27,7 @@ router.use('/messages', messageRoutes);
 router.use('/stories', storyRoutes);
 router.use('/contacts', contactRoutes);
 router.use('/admin', adminRoutes);
+router.use('/calls', callRoutes);
 
 // ── API Info ──────────────────────────────────────────────────
 router.get('/', (req, res) => {

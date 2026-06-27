@@ -18,7 +18,7 @@ export const connectSocket = (token) => {
   socket = io(import.meta.env.VITE_SOCKET_URL || '/', {
     auth: { token },
     transports: ['websocket', 'polling'],
-    reconnectionAttempts: 5,
+    reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
   })

@@ -85,7 +85,8 @@
 @layer components {
   /* WhatsApp-style header bar */
   .wa-header {
-    @apply bg-wa-teal/70 backdrop-blur-xl border-b border-white/5 text-white px-4 py-3 flex items-center shadow-wa;
+    background-color: var(--wa-header);
+    @apply backdrop-blur-xl border-b border-white/5 text-white px-4 py-3 flex items-center shadow-wa;
   }
 
   /* Input field (WhatsApp style) */
@@ -95,7 +96,7 @@
 
   /* Chat bubble base with Glassmorphism */
   .bubble-sent {
-    @apply bg-wa-light/85 backdrop-blur-md text-white rounded-2xl rounded-tr-sm px-3.5 py-2 relative shadow-wa max-w-[80%] ml-auto border border-white/10;
+    @apply bg-wa-light backdrop-blur-md text-white rounded-2xl rounded-tr-sm px-3.5 py-2 relative shadow-wa max-w-[80%] ml-auto border border-white/10;
   }
   .bubble-received {
     @apply bg-white/5 backdrop-blur-md text-white rounded-2xl rounded-tl-sm px-3.5 py-2 relative shadow-wa max-w-[80%] mr-auto border border-white/5;
@@ -103,7 +104,8 @@
 
   /* Bottom Navigation - Floating Capsule Redesign */
   .bottom-nav {
-    @apply fixed bottom-4 left-4 right-4 rounded-full bg-wa-teal/80 backdrop-blur-xl border border-white/10 flex items-center justify-around py-1 z-50 shadow-wa-lg safe-bottom;
+    background-color: var(--wa-teal);
+    @apply fixed bottom-4 left-4 right-4 rounded-full backdrop-blur-xl border border-white/10 flex items-center justify-around py-1 z-50 shadow-wa-lg safe-bottom;
   }
   .bottom-nav-item {
     @apply flex flex-col items-center gap-0.5 py-1 px-3 text-white/50 hover:text-white/90 active:scale-95 transition-all;
@@ -163,7 +165,7 @@
 
   /* Gemini Dark Space Background */
   .wa-chat-bg {
-    background-color: #06080e;
+    background-color: var(--wa-chat-bg);
     background-image: 
       radial-gradient(circle at 10% 20%, rgba(0, 229, 255, 0.03) 0%, transparent 40%),
       radial-gradient(circle at 90% 80%, rgba(138, 35, 135, 0.03) 0%, transparent 40%);
@@ -188,3 +190,98 @@
     @apply bg-white/5 hover:bg-white/10 active:scale-95 border border-white/10 rounded-xl px-4 py-2.5 transition-all text-white font-medium flex items-center justify-center gap-1.5;
   }
 }
+
+/* ── Day Mode (Light Theme) Overrides ── */
+.light-mode {
+  color-scheme: light;
+}
+
+.light-mode html, 
+.light-mode body,
+.light-mode #root {
+  background-color: var(--wa-bg) !important;
+  color: #0f172a !important;
+}
+
+.light-mode body {
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.04) 0%, transparent 45%),
+    radial-gradient(circle at 90% 80%, rgba(59, 130, 246, 0.04) 0%, transparent 45%) !important;
+}
+
+.light-mode .glass-panel {
+  background: rgba(255, 255, 255, 0.75) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #0f172a !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05) !important;
+}
+
+.light-mode .wa-header {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
+  color: #0f172a !important;
+}
+
+.light-mode .glass-button {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #0f172a !important;
+}
+
+.light-mode .text-white {
+  color: #0f172a !important;
+}
+
+.light-mode .text-white\/80 {
+  color: rgba(15, 23, 42, 0.8) !important;
+}
+
+.light-mode .text-white\/60 {
+  color: rgba(15, 23, 42, 0.6) !important;
+}
+
+.light-mode .text-white\/50 {
+  color: rgba(15, 23, 42, 0.5) !important;
+}
+
+.light-mode .text-white\/40 {
+  color: rgba(15, 23, 42, 0.4) !important;
+}
+
+.light-mode .text-white\/30 {
+  color: rgba(15, 23, 42, 0.3) !important;
+}
+
+.light-mode .border-white\/10 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.light-mode .border-white\/5 {
+  border-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+.light-mode .bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+.light-mode .bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+.light-mode .bg-white\/20 {
+  background-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+.light-mode .wa-chat-bg {
+  background-color: var(--wa-chat-bg) !important;
+  background-image: none !important;
+}
+
+.light-mode input::placeholder {
+  color: rgba(15, 23, 42, 0.4) !important;
+}
+
+.light-mode input {
+  color: #0f172a !important;
+}
+

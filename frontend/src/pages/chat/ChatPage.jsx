@@ -72,6 +72,8 @@ export default function ChatPage() {
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState('') // Exact search feedback state
   const [messageText, setMessageText] = useState('')
+  const [editingMessageId, setEditingMessageId] = useState(null)
+  const [selectedMessage, setSelectedMessage] = useState(null)
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false)
   const [groupName, setGroupName] = useState('')
   const [groupDescription, setGroupDescription] = useState('')
@@ -122,9 +124,68 @@ export default function ChatPage() {
     if (!token) return
     fetchChats()
     const socket = getSocket()
-    if (socket) initializeSocketListeners(socket)
-    return () => cleanupSocketListeners()
+    if (socket) {
+      initializeSocketListeners(socket)
+      // Listen for story:new
+      socket.on('story:new', (newStory) => {
+        storyService.getStories().then(r => { if (r.success) setStoryFeed(r.data) }).catch(() => {})
+      })
+    }
+    return () => {
+      cleanupSocketListeners()
+      const s = getSocket()
+      if (s) s.off('story:new')
+    }
   }, [token])
+
+  // ── Handle Android Back Button ──────────────────────────────
+  useEffect(() => {
+    const handleBack = (e) => {
+      if (viewingStory) {
+        setViewingStory(null)
+        e.preventDefault()
+      } else if (selectedFriendProfile) {
+        setSelectedFriendProfile(null)
+        e.preventDefault()
+      } else if (selectedContactForPopUp) {
+        setSelectedContactForPopUp(null)
+        e.preventDefault()
+      } else if (isGroupModalOpen) {
+        setIsGroupModalOpen(false)
+        e.preventDefault()
+      } else if (isDesiDrawerOpen) {
+        setIsDesiDrawerOpen(false)
+        e.preventDefault()
+      } else if (showEmojiPicker) {
+        setShowEmojiPicker(false)
+        e.preventDefault()
+      } else if (selectedMessage) {
+        setSelectedMessage(null)
+        e.preventDefault()
+      } else if (editingMessageId) {
+        setEditingMessageId(null)
+        setMessageText('')
+        e.preventDefault()
+      } else if (activeChat) {
+        setActiveChat(null)
+        e.preventDefault()
+      }
+    }
+
+    window.addEventListener('appBackButton', handleBack)
+    return () => window.removeEventListener('appBackButton', handleBack)
+  }, [
+    viewingStory,
+    selectedFriendProfile,
+    selectedContactForPopUp,
+    isGroupModalOpen,
+    isDesiDrawerOpen,
+    showEmojiPicker,
+    selectedMessage,
+    editingMessageId,
+    activeChat,
+    setActiveChat
+  ])
 
   // ── Load active chat history ──────────────────────────────
   useEffect(() => {
@@ -239,10 +300,42 @@ export default function ChatPage() {
       const text = messageText
       setMessageText('')
       setShowEmojiPicker(false)
-      const socket = getSocket()
-      socket?.emit('typing:stop', { chatId: activeChat._id })
-      await sendTextMessage(activeChat._id, text)
-    } catch (err) { console.error('Send failed:', err) }
+
+      if (editingMessageId) {
+        // Handle Edit
+        const { encryptForParticipants } = await import('@/lib/crypto')
+        const encryptedContent = await encryptForParticipants(text, activeChat, user?._id)
+        await useChatStore.getState().editMessage(editingMessageId, encryptedContent)
+        setEditingMessageId(null)
+      } else {
+        // Handle Send New
+        const socket = getSocket()
+        socket?.emit('typing:stop', { chatId: activeChat._id })
+        await sendTextMessage(activeChat._id, text)
+      }
+    } catch (err) { console.error('Send/Edit failed:', err) }
+  }
+
+  // ── Edit/Delete Message Context Handlers ──────────────────────
+  const handleMessageClick = (msg, isSent) => {
+    if (!isSent || msg.isDeleted) return
+    setSelectedMessage(msg)
+  }
+
+  const handleDeleteMessage = () => {
+    if (selectedMessage) {
+      deleteMessage(selectedMessage._id, 'everyone')
+      setSelectedMessage(null)
+    }
+  }
+
+  const handleEditMessageClick = () => {
+    if (selectedMessage) {
+      setEditingMessageId(selectedMessage._id)
+      const plainText = decryptedTexts[selectedMessage._id] || ''
+      setMessageText(plainText)
+      setSelectedMessage(null)
+    }
   }
 
   // ── Media Upload ─────────────────────────────────────────────
@@ -456,6 +549,189 @@ export default function ChatPage() {
     )
   }
 
+  // ── Modals and Overlays Renderer ───────────────────────────
+  const renderOverlays = () => {
+    return (
+      <>
+        {/* Conditional Bottom Sheet Dialog */}
+        {selectedContactForPopUp && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center animate-fade-in" onClick={() => setSelectedContactForPopUp(null)}>
+            <div 
+              className="w-full max-w-md glass-panel p-6 rounded-t-3xl border-t border-white/15 space-y-4 animate-slide-up"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-2" />
+              <div className="flex items-center gap-3">
+                <Avatar user={selectedContactForPopUp.contactUser} size="md" />
+                <div>
+                  <h3 className="font-bold text-white text-[16px]">{selectedContactForPopUp.contactUser.displayName || selectedContactForPopUp.contactUser.username}</h3>
+                  <p className="text-white/40 text-xs font-medium">Status active • Choose an action</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setViewingStory(selectedContactForPopUp.statusGroup)
+                    setStoryIndex(0)
+                    setSelectedContactForPopUp(null)
+                  }}
+                  className="glass-button py-3 text-sm font-semibold bg-primary-500 text-wa-teal-dark hover:brightness-110"
+                >
+                  🟢 View Status
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFriendProfile(selectedContactForPopUp.contactUser)
+                    setSelectedContactForPopUp(null)
+                  }}
+                  className="glass-button py-3 text-sm font-semibold border-white/10 text-white hover:bg-white/10"
+                >
+                  👤 View Profile
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Friend Profile Modal Drawer */}
+        {selectedFriendProfile && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setSelectedFriendProfile(null)}>
+            <div 
+              className="w-full max-w-sm glass-panel p-6 rounded-3xl border border-white/10 space-y-6 animate-bounce-in max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                <span className="text-xs text-white/40 font-bold uppercase tracking-wider">Contact Card</span>
+                <button 
+                  onClick={() => setSelectedFriendProfile(null)}
+                  className="text-white/60 hover:text-white text-xs font-bold"
+                >
+                  CLOSE
+                </button>
+              </div>
+
+              <div className="flex flex-col items-center text-center">
+                <Avatar user={selectedFriendProfile} size="xl" className="ring-4 ring-primary-500/20" />
+                <h2 className="mt-3 text-xl font-bold text-white">{selectedFriendProfile.displayName || selectedFriendProfile.username}</h2>
+                <p className="text-xs text-primary-500 font-semibold mt-0.5">@{selectedFriendProfile.username}</p>
+                <p className="text-white/60 text-sm mt-3.5 px-4 italic border-l-2 border-primary-500/50">
+                  "{selectedFriendProfile.bio || 'Hey there! I am using BakBak Chat.'}"
+                </p>
+              </div>
+
+              <div className="space-y-3.5 pt-2">
+                <div className="flex items-center gap-3 bg-white/5 p-3 rounded-2xl border border-white/5">
+                  <span className="text-lg">✉️</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Email</p>
+                    <p className="text-sm text-white/95 truncate font-medium">{selectedFriendProfile.email || 'Not provided'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 bg-white/5 p-3 rounded-2xl border border-white/5">
+                  <span className="text-lg">📱</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Phone</p>
+                    <p className="text-sm text-white/95 font-medium">{selectedFriendProfile.phone ? `+91 ${selectedFriendProfile.phone.replace(/^\+91\s?/, '')}` : 'Not provided'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 bg-white/5 p-3 rounded-2xl border border-white/5">
+                  <span className="text-lg">🔑</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider">E2EE PublicKey</p>
+                    <p className="text-xs text-primary-500 font-mono truncate">
+                      {selectedFriendProfile.publicKey ? selectedFriendProfile.publicKey : 'Inactive'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Fullscreen Story Viewer */}
+        {viewingStory && (
+          <div className="fixed inset-0 z-[100] bg-black w-full h-full flex flex-col justify-between overflow-hidden">
+            {/* Progress Bars */}
+            <div className="flex gap-1 px-2 pt-3">
+              {viewingStory.stories.map((s, idx) => (
+                <div key={s._id} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full bg-white transition-all duration-[5000ms] linear ${
+                      idx < storyIndex ? 'w-full' : idx === storyIndex ? 'w-full' : 'w-0'
+                    }`}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Viewer Header */}
+            <div className="flex justify-between items-center px-4 py-3 bg-gradient-to-b from-black/60 to-transparent">
+              <div className="flex items-center gap-2">
+                <Avatar user={viewingStory.author} size="sm" />
+                <div>
+                  <p className="text-white text-xs font-semibold">{viewingStory.author.displayName}</p>
+                  <p className="text-white/40 text-[9px]">{formatTime(viewingStory.stories[storyIndex]?.createdAt)}</p>
+                </div>
+              </div>
+              <button onClick={() => setViewingStory(null)} className="text-white/60 hover:text-white p-2">
+                ✕
+              </button>
+            </div>
+
+            {/* Story Content */}
+            <div className="flex-1 flex items-center justify-center relative px-4">
+              <div 
+                className="absolute left-0 top-0 bottom-0 w-1/3 z-20 cursor-pointer"
+                onClick={() => {
+                  if (storyIndex > 0) setStoryIndex(prev => prev - 1)
+                }}
+              />
+              <div 
+                className="absolute right-0 top-0 bottom-0 w-2/3 z-20 cursor-pointer"
+                onClick={() => {
+                  if (storyIndex < viewingStory.stories.length - 1) {
+                    setStoryIndex(prev => prev + 1)
+                  } else {
+                    setViewingStory(null)
+                  }
+                }}
+              />
+
+              {viewingStory.stories[storyIndex]?.mediaType === 'image' ? (
+                <CachedImage 
+                  src={viewingStory.stories[storyIndex].media.url} 
+                  alt="" 
+                  className="max-h-[70vh] max-w-full rounded-2xl object-contain shadow-2xl z-10" 
+                />
+              ) : viewingStory.stories[storyIndex]?.mediaType === 'video' ? (
+                <video 
+                  src={viewingStory.stories[storyIndex].media.url} 
+                  autoPlay 
+                  playsInline
+                  className="max-h-[70vh] max-w-full rounded-2xl object-contain z-10" 
+                />
+              ) : (
+                <div 
+                  className="w-full max-w-sm aspect-square rounded-3xl flex items-center justify-center p-6 text-center text-xl font-bold text-white z-10 shadow-2xl"
+                  style={{ backgroundColor: viewingStory.stories[storyIndex].backgroundColor }}
+                >
+                  {viewingStory.stories[storyIndex].textContent}
+                </div>
+              )}
+            </div>
+
+            {/* Footer (Views count) */}
+            <div className="text-center pb-8 pt-3 text-white/50 text-xs">
+              👁️ {viewingStory.stories[storyIndex]?.viewedBy?.length || 0} views
+            </div>
+          </div>
+        )}
+      </>
+    )
+  }
+
   const renderTicks = (msg) => {
     if (msg.sender._id !== user?._id) return null
     const readCount = msg.readBy?.length || 0
@@ -559,8 +835,14 @@ export default function ChatPage() {
               : decryptedTexts[msg._id] || msg.encryptedContent?.find(c => c.recipientId === user?._id)?.ciphertext || '🔐 Decrypting...'
 
             return (
-              <div key={msg._id} className={`flex ${isSent ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-                <div className={isSent ? 'bubble-sent' : 'bubble-received'}>
+              <div 
+                key={msg._id} 
+                className={`flex ${isSent ? 'justify-end' : 'justify-start'} animate-fade-in relative`}
+              >
+                <div 
+                  className={isSent ? 'bubble-sent cursor-pointer' : 'bubble-received'}
+                  onClick={() => handleMessageClick(msg, isSent)}
+                >
                   {activeChat.chatType === 'group' && !isSent && (
                     <p className="text-[11px] font-bold text-primary-500 mb-0.5">
                       {msg.sender.displayName || msg.sender.username}
@@ -584,11 +866,24 @@ export default function ChatPage() {
                   <p className={`text-[13.5px] leading-relaxed ${msg.isDeleted ? 'italic text-white/40' : ''}`}>
                     {text}
                   </p>
-                  <div className="flex items-center justify-end gap-0.5 -mb-1 mt-1">
+                  <div className="flex items-center justify-end gap-1 -mb-1 mt-1">
+                    {msg.isEdited && !msg.isDeleted && <span className="text-[9px] text-white/40 italic">Edited</span>}
                     <span className="text-[9px] text-white/40">{formatTime(msg.createdAt)}</span>
                     {renderTicks(msg)}
                   </div>
                 </div>
+
+                {/* Edit/Delete Context Menu */}
+                {selectedMessage?._id === msg._id && isSent && !msg.isDeleted && (
+                  <div className="absolute top-0 right-0 -mt-10 mr-4 bg-[#202c33] rounded-lg shadow-xl border border-white/10 flex flex-col z-10 overflow-hidden">
+                    <button onClick={handleEditMessageClick} className="px-4 py-2 text-xs text-white/90 hover:bg-white/5 text-left border-b border-white/5">
+                      ✏️ Edit
+                    </button>
+                    <button onClick={handleDeleteMessage} className="px-4 py-2 text-xs text-red-400 hover:bg-white/5 text-left">
+                      🗑️ Delete for everyone
+                    </button>
+                  </div>
+                )}
               </div>
             )
           })}
@@ -660,6 +955,26 @@ export default function ChatPage() {
           </div>
         )}
 
+        {/* Edit Mode Indicator */}
+        {editingMessageId && (
+          <div className="bg-wa-teal/80 border-t border-white/10 px-4 py-2 flex items-center justify-between z-30 shadow-lg backdrop-blur-md">
+            <div className="flex flex-col">
+              <span className="text-primary-500 text-xs font-bold">Editing message</span>
+              <span className="text-white/60 text-[11px] truncate w-64">{messageText}</span>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => {
+                setEditingMessageId(null)
+                setMessageText('')
+              }}
+              className="text-white/40 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Chat Input */}
         <form onSubmit={handleSendMessage} className="flex items-center gap-2 px-3 py-3 bg-wa-teal/50 backdrop-blur-md border-t border-white/5 flex-shrink-0">
           <input type="file" ref={mediaInputRef} onChange={handleMediaUpload} accept="image/*,video/*,audio/*,.pdf" className="hidden" />
@@ -713,102 +1028,8 @@ export default function ChatPage() {
           </button>
         </form>
 
-        {/* ── CONDITIONAL BOTTOM SHEET DIALOG ─────────────────────── */}
-        {selectedContactForPopUp && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center animate-fade-in" onClick={() => setSelectedContactForPopUp(null)}>
-            <div 
-              className="w-full max-w-md glass-panel p-6 rounded-t-3xl border-t border-white/15 space-y-4 animate-slide-up"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-2" />
-              <div className="flex items-center gap-3">
-                <Avatar user={selectedContactForPopUp.contactUser} size="md" />
-                <div>
-                  <h3 className="font-bold text-white text-[16px]">{selectedContactForPopUp.contactUser.displayName || selectedContactForPopUp.contactUser.username}</h3>
-                  <p className="text-white/40 text-xs font-medium">Status active • Choose an action</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <button
-                  onClick={() => {
-                    setViewingStory(selectedContactForPopUp.statusGroup)
-                    setStoryIndex(0)
-                    setSelectedContactForPopUp(null)
-                  }}
-                  className="glass-button py-3 text-sm font-semibold bg-primary-500 text-wa-teal-dark hover:brightness-110"
-                >
-                  🟢 View Status
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedFriendProfile(selectedContactForPopUp.contactUser)
-                    setSelectedContactForPopUp(null)
-                  }}
-                  className="glass-button py-3 text-sm font-semibold border-white/10 text-white hover:bg-white/10"
-                >
-                  👤 View Profile
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── FRIEND PROFILE MODAL DRAWER ─────────────────────────── */}
-        {selectedFriendProfile && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setSelectedFriendProfile(null)}>
-            <div 
-              className="w-full max-w-sm glass-panel p-6 rounded-3xl border border-white/10 space-y-6 animate-bounce-in max-h-[85vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                <span className="text-xs text-white/40 font-bold uppercase tracking-wider">Contact Card</span>
-                <button 
-                  onClick={() => setSelectedFriendProfile(null)}
-                  className="text-white/60 hover:text-white text-xs font-bold"
-                >
-                  CLOSE
-                </button>
-              </div>
-
-              <div className="flex flex-col items-center text-center">
-                <Avatar user={selectedFriendProfile} size="xl" className="ring-4 ring-primary-500/20" />
-                <h2 className="mt-3 text-xl font-bold text-white">{selectedFriendProfile.displayName || selectedFriendProfile.username}</h2>
-                <p className="text-xs text-primary-500 font-semibold mt-0.5">@{selectedFriendProfile.username}</p>
-                <p className="text-white/60 text-sm mt-3.5 px-4 italic border-l-2 border-primary-500/50">
-                  "{selectedFriendProfile.bio || 'Hey there! I am using BakBak Chat.'}"
-                </p>
-              </div>
-
-              <div className="space-y-3.5 pt-2">
-                <div className="flex items-center gap-3 bg-white/5 p-3 rounded-2xl border border-white/5">
-                  <span className="text-lg">✉️</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Email</p>
-                    <p className="text-sm text-white/95 truncate font-medium">{selectedFriendProfile.email || 'Not provided'}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 bg-white/5 p-3 rounded-2xl border border-white/5">
-                  <span className="text-lg">📱</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider">Phone</p>
-                    <p className="text-sm text-white/95 font-medium">{selectedFriendProfile.phone ? `+91 ${selectedFriendProfile.phone.replace(/^\+91\s?/, '')}` : 'Not provided'}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 bg-white/5 p-3 rounded-2xl border border-white/5">
-                  <span className="text-lg">🔑</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider">E2EE PublicKey</p>
-                    <p className="text-xs text-primary-500 font-mono truncate">
-                      {selectedFriendProfile.publicKey ? selectedFriendProfile.publicKey : 'Inactive'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Shared Modals & Overlays */}
+        {renderOverlays()}
       </div>
     )
   }
@@ -1066,86 +1287,8 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Fullscreen Story Viewer */}
-      {viewingStory && (
-        <div className="fixed inset-0 z-70 bg-black flex flex-col justify-between">
-          {/* Progress Bars */}
-          <div className="flex gap-1 px-2 pt-3">
-            {viewingStory.stories.map((s, idx) => (
-              <div key={s._id} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full bg-white transition-all duration-[5000ms] linear ${
-                    idx < storyIndex ? 'w-full' : idx === storyIndex ? 'w-full' : 'w-0'
-                  }`}
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* Viewer Header */}
-          <div className="flex justify-between items-center px-4 py-3 bg-gradient-to-b from-black/60 to-transparent">
-            <div className="flex items-center gap-2">
-              <Avatar user={viewingStory.author} size="sm" />
-              <div>
-                <p className="text-white text-xs font-semibold">{viewingStory.author.displayName}</p>
-                <p className="text-white/40 text-[9px]">{formatTime(viewingStory.stories[storyIndex]?.createdAt)}</p>
-              </div>
-            </div>
-            <button onClick={() => setViewingStory(null)} className="text-white/60 hover:text-white p-2">
-              ✕
-            </button>
-          </div>
-
-          {/* Story Content */}
-          <div className="flex-1 flex items-center justify-center relative px-4">
-            {/* Left 1/3 tap area */}
-            <div 
-              className="absolute left-0 top-0 bottom-0 w-1/3 z-20 cursor-pointer"
-              onClick={() => {
-                if (storyIndex > 0) setStoryIndex(prev => prev - 1)
-              }}
-            />
-            {/* Right 2/3 tap area */}
-            <div 
-              className="absolute right-0 top-0 bottom-0 w-2/3 z-20 cursor-pointer"
-              onClick={() => {
-                if (storyIndex < viewingStory.stories.length - 1) {
-                  setStoryIndex(prev => prev + 1)
-                } else {
-                  setViewingStory(null)
-                }
-              }}
-            />
-
-            {viewingStory.stories[storyIndex]?.mediaType === 'image' ? (
-              <CachedImage 
-                src={viewingStory.stories[storyIndex].media.url} 
-                alt="" 
-                className="max-h-[70vh] max-w-full rounded-2xl object-contain shadow-2xl z-10" 
-              />
-            ) : viewingStory.stories[storyIndex]?.mediaType === 'video' ? (
-              <video 
-                src={viewingStory.stories[storyIndex].media.url} 
-                autoPlay 
-                playsInline
-                className="max-h-[70vh] max-w-full rounded-2xl object-contain z-10" 
-              />
-            ) : (
-              <div 
-                className="w-full max-w-sm aspect-square rounded-3xl flex items-center justify-center p-6 text-center text-xl font-bold text-white z-10 shadow-2xl"
-                style={{ backgroundColor: viewingStory.stories[storyIndex].backgroundColor }}
-              >
-                {viewingStory.stories[storyIndex].textContent}
-              </div>
-            )}
-          </div>
-
-          {/* Footer (Views count) */}
-          <div className="text-center pb-8 pt-3 text-white/50 text-xs">
-            👁️ {viewingStory.stories[storyIndex]?.viewedBy?.length || 0} views
-          </div>
-        </div>
-      )}
+      {/* Shared Modals & Overlays */}
+      {renderOverlays()}
     </div>
   )
 }

@@ -7,6 +7,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import useCallStore from '@/store/callStore'
 import { getSocket } from '@/lib/socket'
+import api from '@/lib/axios'
 import {
   getUserMedia,
   createPeerConnection,
@@ -61,10 +62,33 @@ export default function CallOverlay() {
     if (!socket) return
 
     // Incoming call
-    const handleIncoming = ({ from, fromName, fromAvatar, offer, callType: ct }) => {
+    const handleIncoming = async ({ from, fromName, fromAvatar, offer, callType: ct }) => {
       // Store the offer for later use when accepting
       window.__bakbak_incoming_offer = offer
       receiveCall(from, fromName, fromAvatar, ct)
+      
+      try {
+        const { LocalNotifications } = await import('@capacitor/local-notifications')
+        let permStatus = await LocalNotifications.checkPermissions()
+        if (permStatus.display === 'prompt') {
+          permStatus = await LocalNotifications.requestPermissions()
+        }
+        if (permStatus.display === 'granted') {
+          await LocalNotifications.schedule({
+            notifications: [
+              {
+                title: 'Incoming Call',
+                body: `${fromName || 'Someone'} is calling you`,
+                id: new Date().getTime(),
+                schedule: { at: new Date(Date.now() + 100) },
+                channelId: 'bakbak-chat-messages',
+              },
+            ],
+          })
+        }
+      } catch (err) {
+        console.warn('Local Notifications not available:', err)
+      }
     }
 
     // Remote answered our call
@@ -111,6 +135,23 @@ export default function CallOverlay() {
     }
   }, [callStatus])
 
+  // ── NAT Traversal (TURN Server) helper ─────────────────────
+  const iceServersRef = useRef(null)
+
+  const getIceServers = async () => {
+    if (iceServersRef.current) return iceServersRef.current
+    try {
+      const res = await api.get('/calls/ice-servers')
+      if (res.data?.success) {
+        iceServersRef.current = res.data.iceServers
+        return res.data.iceServers
+      }
+    } catch (err) {
+      console.warn('Failed to fetch ICE servers:', err)
+    }
+    return null
+  }
+
   // ── Initiate outgoing call ──────────────────────────────────
   useEffect(() => {
     if (callStatus !== 'ringing') return
@@ -125,6 +166,8 @@ export default function CallOverlay() {
           localVideoRef.current.srcObject = stream
         }
 
+        const iceServers = await getIceServers()
+
         createPeerConnection(
           (candidate) => socket.emit('call:ice-candidate', { to: remoteUserId, candidate }),
           (remStream) => {
@@ -133,7 +176,8 @@ export default function CallOverlay() {
               remoteVideoRef.current.srcObject = remStream
             }
             connectCall()
-          }
+          },
+          iceServers
         )
 
         const offer = await createOffer()
@@ -158,6 +202,8 @@ export default function CallOverlay() {
         localVideoRef.current.srcObject = stream
       }
 
+      const iceServers = await getIceServers()
+
       createPeerConnection(
         (candidate) => socket.emit('call:ice-candidate', { to: remoteUserId, candidate }),
         (remStream) => {
@@ -165,7 +211,8 @@ export default function CallOverlay() {
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = remStream
           }
-        }
+        },
+        iceServers
       )
 
       const offer = window.__bakbak_incoming_offer

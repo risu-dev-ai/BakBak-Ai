@@ -12,6 +12,9 @@ import useChatStore from '@/store/chatStore'
 import PageLoader from '@/components/ui/PageLoader'
 import CallOverlay from '@/components/call/CallOverlay'
 import BottomNav from '@/components/layout/BottomNav'
+import { connectSocket, getSocket } from '@/lib/socket'
+import { LocalNotifications } from '@capacitor/local-notifications'
+import { initTheme } from '@/lib/theme'
 
 // ── Lazy-load pages ───────────────────────────────────────────
 const LandingPage    = lazy(() => import('@/pages/LandingPage'))
@@ -42,6 +45,9 @@ const GuestRoute = ({ children }) => {
   return isAuthenticated ? <Navigate to="/chat" replace /> : children
 }
 
+import { App as CapApp } from '@capacitor/app'
+import { useNavigate } from 'react-router-dom'
+
 // ── Bottom Nav Wrapper ───────────────────────────────────────
 function BottomNavWrapper() {
   const location = useLocation()
@@ -59,8 +65,91 @@ function BottomNavWrapper() {
 
 export default function App() {
   const { isAuthenticated, user, updateUser, setE2EEReady } = useAuthStore()
+  const navigate = useNavigate()
+  const token = useAuthStore((s) => s.token)
 
+  // Hardware Back Button Listener (Android)
   useEffect(() => {
+    const handleBackButton = () => {
+      // Dispatches a custom event to let active pages handle it first
+      const backEvent = new CustomEvent('appBackButton', { cancelable: true })
+      window.dispatchEvent(backEvent)
+
+      if (backEvent.defaultPrevented) {
+        // Handled by active page/modal
+        return
+      }
+
+      // If we are at the root or main tabs, exit the app
+      if (
+        location.pathname === '/' ||
+        location.pathname === '/login' ||
+        location.pathname === '/chat'
+      ) {
+        CapApp.exitApp()
+      } else {
+        // Otherwise, navigate back in history
+        navigate(-1)
+      }
+    }
+
+    const listener = CapApp.addListener('backButton', handleBackButton)
+
+    return () => {
+      listener.then((l) => l.remove())
+    }
+  }, [location.pathname, navigate])
+
+  // Initialize Socket on boot if already authenticated
+  useEffect(() => {
+    if (!isAuthenticated || !token) return
+
+    const socket = connectSocket(token)
+
+    // Reconnect socket when app returns to foreground
+    const handleStateChange = ({ isActive }) => {
+      if (isActive) {
+        console.log('📱 App resumed, checking socket connection...')
+        if (socket && !socket.connected) {
+          console.log('🔄 Socket disconnected on resume, reconnecting...')
+          socket.connect()
+        }
+      }
+    }
+
+    const listener = CapApp.addListener('appStateChange', handleStateChange)
+
+    return () => {
+      listener.then((l) => l.remove())
+    }
+  }, [isAuthenticated, token])
+
+  // Initialize notifications channel on boot
+  useEffect(() => {
+    const setupNotificationChannel = async () => {
+      try {
+        const perm = await LocalNotifications.checkPermissions()
+        if (perm.display === 'prompt') {
+          await LocalNotifications.requestPermissions()
+        }
+        
+        // Create high priority channel for heads-up banners on Android
+        await LocalNotifications.createChannel({
+          id: 'bakbak-chat-messages',
+          name: 'Chat Messages',
+          description: 'Incoming messages and call notifications',
+          importance: 5, // Max importance (heads-up banner and sound)
+          visibility: 1, // Public
+          vibration: true,
+          lights: true
+        })
+      } catch (err) {
+        console.warn('Local notifications channel creation failed:', err)
+      }
+    }
+
+    setupNotificationChannel()
+    initTheme()
     import('@/services/syncQueue').then(({ syncQueue }) => syncQueue.init())
   }, [])
 

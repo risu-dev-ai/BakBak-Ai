@@ -73,6 +73,16 @@ const chatService = {
   },
 
   /**
+   * Edit a message
+   */
+  editMessage: async (messageId, encryptedContent) => {
+    const response = await api.put(`/messages/edit/${messageId}`, {
+      encryptedContent
+    })
+    return response.data
+  },
+
+  /**
    * Mark all messages in a chat as read
    */
   markAsRead: async (chatId) => {

@@ -176,6 +176,57 @@ exports.deleteMessage = async (req, res, next) => {
 };
 
 /**
+ * Edit a message
+ * PUT /api/v1/messages/edit/:id
+ */
+exports.editMessage = async (req, res, next) => {
+  try {
+    const { encryptedContent } = req.body;
+    const messageId = req.params.id;
+    const currentUserId = req.user._id;
+
+    if (!encryptedContent || !Array.isArray(encryptedContent)) {
+      return res.status(400).json({ success: false, message: 'Invalid encrypted content.' });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Message not found.' });
+    }
+
+    if (message.sender.toString() !== currentUserId.toString()) {
+      return res.status(403).json({ success: false, message: 'You can only edit your own messages.' });
+    }
+
+    if (message.isDeleted) {
+      return res.status(400).json({ success: false, message: 'Cannot edit a deleted message.' });
+    }
+
+    message.encryptedContent = encryptedContent;
+    message.isEdited = true;
+    await message.save();
+
+    const populatedMessage = await Message.findById(message._id)
+      .populate('sender', 'username displayName avatar isOnline publicKey')
+      .populate({
+        path: 'replyTo',
+        select: 'sender encryptedContent messageType media',
+        populate: { path: 'sender', select: 'username displayName' }
+      });
+
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      io.to(message.chat.toString()).emit('message:edited', populatedMessage);
+    }
+
+    res.status(200).json({ success: true, data: populatedMessage });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Mark all messages in a chat as read
  * PUT /api/v1/messages/read/:chatId
  */

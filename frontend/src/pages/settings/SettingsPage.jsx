@@ -1,79 +1,23 @@
-import React from 'react'
+// ============================================================
+// BakBak Chat - Settings & Theme Personalization Page
+// File: frontend/src/pages/settings/SettingsPage.jsx
+// ============================================================
+
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useAuthStore from '@/store/authStore'
 import { disconnectSocket } from '@/lib/socket'
 import Avatar from '@/components/ui/Avatar'
-
-const menuItems = [
-  {
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-      </svg>
-    ),
-    title: 'Account',
-    subtitle: 'Privacy, security, change number',
-    path: '/profile',
-  },
-  {
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-      </svg>
-    ),
-    title: 'Chats',
-    subtitle: 'Theme, wallpaper, chat history',
-  },
-  {
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-      </svg>
-    ),
-    title: 'Notifications',
-    subtitle: 'Message, group & call tones',
-  },
-  {
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-      </svg>
-    ),
-    title: 'Storage and Data',
-    subtitle: 'Network usage, auto-download',
-  },
-  {
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-      </svg>
-    ),
-    title: 'Privacy',
-    subtitle: 'Blocked contacts, disappearing messages',
-  },
-  {
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    title: 'Help',
-    subtitle: 'Help center, contact us, privacy policy',
-  },
-  {
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    title: 'About BakBak',
-    subtitle: 'Version 2.3.0',
-  },
-]
+import { applyTheme, THEME_PRESETS } from '@/lib/theme'
+import { syncAddressBook } from '@/lib/contactsSync'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
   const { user, clearAuth } = useAuthStore()
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState(null) // { success: boolean, msg: string }
+
+  const currentTheme = localStorage.getItem('bakbak_theme_key') || 'cyberpunk'
 
   const handleLogout = () => {
     disconnectSocket()
@@ -81,59 +25,173 @@ export default function SettingsPage() {
     navigate('/login')
   }
 
+  const handleThemeChange = (themeKey) => {
+    applyTheme(themeKey)
+    // Force a re-render to update selected indicators
+    navigate('/settings')
+  }
+
+  const handleContactsSync = async () => {
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const res = await syncAddressBook()
+      setSyncResult({
+        success: true,
+        msg: res.count > 0 
+          ? `Synced ${res.count} contacts successfully!` 
+          : 'Sync complete. No new contacts found.'
+      })
+    } catch (err) {
+      setSyncResult({
+        success: false,
+        msg: err.message || 'Sync failed. Native access required.'
+      })
+    } finally {
+      setSyncing(false)
+      setTimeout(() => setSyncResult(null), 5000)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 page-with-nav">
+    <div className="min-h-screen bg-wa-bg text-white page-with-nav relative overflow-hidden">
+      {/* Background glow effects */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-gradient-to-br from-primary-500/10 to-transparent blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-gradient-to-br from-wa-blue/10 to-transparent blur-[120px] pointer-events-none" />
+
       {/* Header */}
-      <div className="wa-header">
-        <h1 className="text-lg font-semibold">Settings</h1>
+      <div className="bg-wa-teal/60 backdrop-blur-xl px-4 pt-4 pb-3 border-b border-white/5 flex-shrink-0 z-10 sticky top-0">
+        <h1 className="text-xl font-bold font-display tracking-wide">Settings</h1>
       </div>
 
       {/* Profile Card */}
-      <div
-        onClick={() => navigate('/profile')}
-        className="flex items-center gap-4 px-4 py-4 bg-white border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors"
-      >
-        <Avatar user={user} size="lg" showOnline />
-        <div className="flex-1 min-w-0">
-          <p className="text-lg font-semibold text-gray-900 truncate">{user?.displayName}</p>
-          <p className="text-sm text-gray-500 truncate">{user?.statusText || 'Hey there! I am using BakBak.'}</p>
+      <div className="px-4 py-6 mt-4">
+        <div
+          onClick={() => navigate('/profile')}
+          className="flex items-center gap-4 p-5 glass-panel rounded-3xl cursor-pointer hover:bg-white/10 transition-all border border-white/10 active:scale-[0.99]"
+        >
+          <Avatar user={user} size="lg" showOnline className="ring-4 ring-primary-500/20" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[17px] font-bold text-white truncate">{user?.displayName || user?.username}</p>
+            <p className="text-xs text-white/50 truncate mt-0.5">{user?.statusText || 'Hey there! I am using BakBak.'}</p>
+          </div>
+          <svg className="w-5 h-5 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
         </div>
-        <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
       </div>
 
-      {/* Menu Items */}
-      <div className="mt-2 bg-white">
-        {menuItems.map((item, i) => (
-          <div
-            key={i}
-            onClick={() => item.path && navigate(item.path)}
-            className="wa-list-item border-b border-gray-50 last:border-0"
-          >
-            <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white flex-shrink-0">
-              {item.icon}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[15px] font-medium text-gray-900">{item.title}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{item.subtitle}</p>
+      {/* Personalization Section */}
+      <div className="px-4 py-2 space-y-4">
+        <h2 className="text-xs text-primary-500 font-bold uppercase tracking-wider px-2">Chats & Themes</h2>
+        
+        <div className="glass-panel p-5 rounded-3xl border border-white/10 space-y-4">
+          <p className="text-sm font-semibold text-white/80">Choose Theme Preset</p>
+          
+          <div className="grid grid-cols-2 gap-2.5">
+            {Object.entries(THEME_PRESETS).map(([key, preset]) => (
+              <button
+                key={key}
+                onClick={() => handleThemeChange(key)}
+                className={`p-3.5 rounded-2xl border text-left flex flex-col justify-between transition-all duration-300 ${
+                  currentTheme === key
+                    ? 'border-primary-500 bg-primary-500/10 shadow-glass-glow'
+                    : 'border-white/5 bg-white/5 hover:bg-white/10'
+                }`}
+              >
+                <span className="text-xs font-bold text-white">{preset.name}</span>
+                <div className="flex gap-1.5 mt-3">
+                  <div className="w-4 h-4 rounded-full border border-white/20" style={{ backgroundColor: preset.colors['--wa-green'] }} />
+                  <div className="w-4 h-4 rounded-full border border-white/20" style={{ backgroundColor: preset.colors['--wa-blue'] }} />
+                  <div className="w-4 h-4 rounded-full border border-white/20" style={{ backgroundColor: preset.colors['--wa-teal'] }} />
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Contacts Sync Section */}
+      <div className="px-4 py-4 space-y-4">
+        <h2 className="text-xs text-primary-500 font-bold uppercase tracking-wider px-2">Address Book Sync</h2>
+        
+        <div className="glass-panel p-5 rounded-3xl border border-white/10 space-y-4">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl mt-0.5">🔄</span>
+            <div>
+              <p className="text-sm font-semibold text-white">Automated Local Contacts Sync</p>
+              <p className="text-xs text-white/50 mt-1 leading-relaxed">
+                Scan your local mobile address book to automatically find and add your friends registered on BakBak Chat.
+              </p>
             </div>
           </div>
-        ))}
+
+          {syncResult && (
+            <div className={`p-3 rounded-2xl text-xs font-semibold animate-fade-in border ${
+              syncResult.success 
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+            }`}>
+              {syncResult.msg}
+            </div>
+          )}
+
+          <button
+            onClick={handleContactsSync}
+            disabled={syncing}
+            className="w-full glass-button bg-primary-500 text-wa-teal-dark hover:brightness-110 font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2.5 transition-all shadow-glass-glow disabled:opacity-50"
+          >
+            {syncing ? (
+              <>
+                <svg className="animate-spin h-5 w-5 text-wa-teal-dark" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Syncing Address Book...
+              </>
+            ) : (
+              <>
+                <span>📲</span>
+                Sync Local Contacts
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Logout */}
-      <div className="mt-2 bg-white">
-        <button
-          onClick={handleLogout}
-          className="wa-list-item w-full text-left"
-        >
-          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-500 flex-shrink-0">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+      {/* Account Settings Menu */}
+      <div className="px-4 py-2 space-y-4">
+        <h2 className="text-xs text-primary-500 font-bold uppercase tracking-wider px-2">Account</h2>
+        
+        <div className="glass-panel rounded-3xl border border-white/10 overflow-hidden divide-y divide-white/5">
+          <div
+            onClick={() => navigate('/profile')}
+            className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-lg">👤</span>
+              <div>
+                <p className="text-sm font-semibold">Edit Profile</p>
+                <p className="text-[11px] text-white/40 mt-0.5">Avatar, display name, status text, and E2EE keys</p>
+              </div>
+            </div>
+            <svg className="w-4 h-4 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
           </div>
-          <p className="text-[15px] font-medium text-red-500">Log Out</p>
+        </div>
+      </div>
+
+      {/* Logout Button */}
+      <div className="px-4 py-8">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 p-4 bg-rose-500/10 hover:bg-rose-500/20 active:scale-[0.99] border border-rose-500/20 rounded-3xl text-rose-500 font-semibold text-sm transition-all"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Log Out Account
         </button>
       </div>
     </div>

@@ -43,9 +43,9 @@ export async function getUserMedia(callType = 'audio') {
  * @param {Function} onTrack - Called when remote track is received
  * @returns {RTCPeerConnection}
  */
-export function createPeerConnection(onIceCandidate, onTrack) {
+export function createPeerConnection(onIceCandidate, onTrack, iceServers = ICE_SERVERS) {
   peerConnection = new RTCPeerConnection({
-    iceServers: ICE_SERVERS,
+    iceServers: iceServers || ICE_SERVERS,
   })
 
   // Send ICE candidates to the remote peer via signaling

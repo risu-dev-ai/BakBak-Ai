@@ -18,6 +18,7 @@ router.post('/upload-media', uploadMedia, messageController.uploadMedia);
 // Message operations
 router.post('/', messageController.sendMessage);
 router.get('/:chatId', messageController.getChatMessages);
+router.put('/edit/:id', messageController.editMessage);
 router.delete('/:id', messageController.deleteMessage);
 router.put('/read/:chatId', messageController.markChatAsRead);
 
