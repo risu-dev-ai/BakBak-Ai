@@ -223,12 +223,21 @@ export async function decryptMessage(ciphertextB64, ivB64, sharedKey) {
  * @returns {Array<{recipientId, ciphertext, iv}>}
  */
 export async function encryptForParticipants(plaintext, participants, currentUserId) {
+  // ── TEMPORARY E2EE BYPASS ──────────────────────────────────
+  // Sends all messages as plaintext to debug media/socket delivery.
+  // To restore E2EE, remove this block and uncomment the original below.
+  return participants.map((participant) => ({
+    recipientId: participant._id,
+    ciphertext: plaintext,
+    iv: '__PLAINTEXT__',
+  }))
+
+  /* ── ORIGINAL E2EE LOGIC (commented out for debugging) ──────
   const encryptedContent = []
 
   for (const participant of participants) {
     try {
       if (!participant.publicKey) {
-        // Participant hasn't set up E2EE yet — send plaintext fallback
         encryptedContent.push({
           recipientId: participant._id,
           ciphertext: plaintext,
@@ -247,7 +256,6 @@ export async function encryptForParticipants(plaintext, participants, currentUse
       })
     } catch (err) {
       console.error(`Failed to encrypt for ${participant._id}:`, err)
-      // Fallback to plaintext for this participant
       encryptedContent.push({
         recipientId: participant._id,
         ciphertext: plaintext,
@@ -257,6 +265,7 @@ export async function encryptForParticipants(plaintext, participants, currentUse
   }
 
   return encryptedContent
+  ── END ORIGINAL */
 }
 
 /**
@@ -269,17 +278,31 @@ export async function encryptForParticipants(plaintext, participants, currentUse
  * @returns {string} - Decrypted plaintext
  */
 export async function decryptForMe(encryptedContent, senderPublicKey, currentUserId) {
+  // ── TEMPORARY E2EE BYPASS ──────────────────────────────────
+  // Returns plaintext directly without any crypto operations.
+  // To restore E2EE, remove this block and uncomment the original below.
   if (!encryptedContent || encryptedContent.length === 0) {
     return ''
   }
 
-  // Find the encrypted content for the current user
+  // Find content for the current user, or fall back to first entry
+  const myContent = encryptedContent.find(
+    (c) => c.recipientId === currentUserId || c.recipientId?.toString() === currentUserId
+  ) || encryptedContent[0]
+
+  if (!myContent) return ''
+  return myContent.ciphertext || ''
+
+  /* ── ORIGINAL E2EE LOGIC (commented out for debugging) ──────
+  if (!encryptedContent || encryptedContent.length === 0) {
+    return ''
+  }
+
   const myContent = encryptedContent.find(
     (c) => c.recipientId === currentUserId || c.recipientId?.toString() === currentUserId
   )
 
   if (!myContent) {
-    // Fallback: use first available content
     const fallback = encryptedContent[0]
     if (fallback?.iv === '__PLAINTEXT__' || fallback?.iv === 'mock_iv_phase_3') {
       return fallback.ciphertext
@@ -287,14 +310,12 @@ export async function decryptForMe(encryptedContent, senderPublicKey, currentUse
     return '🔒 Message not available for you'
   }
 
-  // Check for plaintext fallback markers
   if (myContent.iv === '__PLAINTEXT__' || myContent.iv === 'mock_iv_phase_3') {
     return myContent.ciphertext
   }
 
-  // Real decryption
   if (!senderPublicKey) {
-    return myContent.ciphertext // Can't decrypt without sender's key
+    return myContent.ciphertext
   }
 
   try {
@@ -304,6 +325,7 @@ export async function decryptForMe(encryptedContent, senderPublicKey, currentUse
     console.warn('Decryption failed, returning raw:', err.message)
     return '🔒 Unable to decrypt'
   }
+  ── END ORIGINAL */
 }
 
 // ── Base64 Utilities ──────────────────────────────────────────
