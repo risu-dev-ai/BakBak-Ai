@@ -122,6 +122,10 @@ export default function CallOverlay() {
 
     // Remote rejected the call
     const handleRejected = () => {
+      const logId = useCallStore.getState().currentCallLogId
+      if (logId) {
+        api.patch(`/calls/${logId}`, { status: 'rejected' }).catch(err => console.warn(err))
+      }
       handleEndCall()
     }
 

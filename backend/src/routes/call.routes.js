@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
 const crypto = require('crypto');
+const callController = require('../controllers/callController');
 
 /**
  * Fetch ICE servers list with TURN credentials dynamically.
@@ -54,5 +55,15 @@ router.get('/ice-servers', protect, (req, res) => {
     iceServers
   });
 });
+
+/**
+ * Call Log endpoints
+ */
+router.route('/')
+  .get(protect, callController.getCallHistory)
+  .post(protect, callController.createCallLog);
+
+router.route('/:callId')
+  .patch(protect, callController.updateCallLog);
 
 module.exports = router;

@@ -106,7 +106,8 @@
   /* Bottom Navigation - Floating Capsule Redesign */
   .bottom-nav {
     background-color: var(--wa-teal);
-    @apply fixed bottom-4 left-4 right-4 rounded-full backdrop-blur-xl border border-white/10 flex items-center justify-around py-1 z-50 shadow-wa-lg safe-bottom;
+    @apply fixed left-4 right-4 rounded-full backdrop-blur-xl border border-white/10 flex items-center justify-around py-1 z-50 shadow-wa-lg;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
   }
   .bottom-nav-item {
     @apply flex flex-col items-center gap-0.5 py-1 px-3 text-white/50 hover:text-white/90 active:scale-95 transition-all;
@@ -161,7 +162,7 @@
 
   /* Page with bottom nav */
   .page-with-nav {
-    @apply pb-24;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 7rem);
   }
 
   /* Gemini Dark Space Background */

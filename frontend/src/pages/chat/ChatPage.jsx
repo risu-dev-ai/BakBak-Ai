@@ -988,7 +988,7 @@ export default function ChatPage() {
         )}
 
         {/* Chat Input */}
-        <form onSubmit={handleSendMessage} className="flex items-center gap-2 px-3 py-3 bg-wa-teal/50 backdrop-blur-md border-t border-white/5 flex-shrink-0">
+        <form onSubmit={handleSendMessage} className="flex items-center gap-2 px-3 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] bg-wa-teal/50 backdrop-blur-md border-t border-white/5 flex-shrink-0">
           <input type="file" ref={mediaInputRef} onChange={handleMediaUpload} accept="image/*,video/*,audio/*,.pdf" className="hidden" />
           <div className="flex-1 flex items-center bg-white/5 border border-white/10 rounded-full px-3 gap-2">
             <button 
@@ -1054,7 +1054,7 @@ export default function ChatPage() {
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-gradient-to-br from-wa-blue/10 to-transparent blur-[120px] pointer-events-none" />
 
       {/* Header */}
-      <div className="bg-wa-teal/60 backdrop-blur-xl text-white px-4 pt-4 pb-3 border-b border-white/5 flex-shrink-0 z-10">
+      <div className="bg-wa-teal/60 backdrop-blur-xl text-white px-4 pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-3 border-b border-white/5 flex-shrink-0 z-10">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Logo size={32} variant="gradient" />
