@@ -107,7 +107,7 @@ const socketHandler = (io) => {
 
     // ── Phase 6: WebRTC Signaling Relay ───────────────────────
     // These events relay WebRTC offer/answer/ICE candidates between peers
-    socket.on('call:offer', ({ to, offer, callType }) => {
+    socket.on('call:offer', async ({ to, offer, callType }) => {
       io.to(to).emit('call:incoming', {
         from: socket.user._id,
         fromName: socket.user.displayName,
@@ -115,6 +115,28 @@ const socketHandler = (io) => {
         offer,
         callType, // 'audio' | 'video'
       });
+
+      // Send high-priority FCM push notification to offline/background recipients
+      try {
+        const { sendPushNotification } = require('../utils/fcm');
+        const recipientUser = await User.findById(to).select('fcmToken');
+        if (recipientUser?.fcmToken) {
+          await sendPushNotification(recipientUser.fcmToken, {
+            title: `Incoming ${callType === 'video' ? 'Video' : 'Voice'} Call`,
+            body: `${socket.user.displayName || socket.user.username} is calling you`,
+            data: {
+              type: 'call',
+              from: socket.user._id.toString(),
+              fromName: socket.user.displayName || socket.user.username,
+              fromAvatar: socket.user.avatar?.url || '',
+              callType,
+              offer: JSON.stringify(offer),
+            }
+          });
+        }
+      } catch (pushErr) {
+        console.warn('Failed to send call push notification:', pushErr.message);
+      }
     });
 
     socket.on('call:answer', ({ to, answer }) => {

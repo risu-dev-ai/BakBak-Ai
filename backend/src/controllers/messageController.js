@@ -63,13 +63,36 @@ exports.sendMessage = async (req, res, next) => {
 
       // 2. Notify all participants (to update their sidebar chat list)
       chat.participants.forEach(participantId => {
-        // Don't send sidebar update to sender if they already updated locally (or let it update)
         io.to(participantId.toString()).emit('chat:update', {
           chatId: chat._id,
           lastMessage: populatedMessage,
           updatedAt: chat.updatedAt
         });
       });
+    }
+
+    // 3. Dispatch high-priority FCM push notifications to other offline/background participants
+    try {
+      const User = require('../models/User');
+      const { sendPushNotification } = require('../utils/fcm');
+      const otherParticipants = chat.participants.filter(id => id.toString() !== senderId.toString());
+      
+      const users = await User.find({ _id: { $in: otherParticipants } }).select('fcmToken username displayName');
+      for (const recipient of users) {
+        if (recipient.fcmToken) {
+          await sendPushNotification(recipient.fcmToken, {
+            title: populatedMessage.sender.displayName || populatedMessage.sender.username,
+            body: messageType === 'text' ? 'Sent a message' : `[${messageType}] Media attachment`,
+            data: {
+              chatId: chatId.toString(),
+              messageId: populatedMessage._id.toString(),
+              type: 'message',
+            }
+          });
+        }
+      }
+    } catch (pushErr) {
+      console.warn('Failed to dispatch push notifications:', pushErr.message);
     }
 
     res.status(201).json({ success: true, data: populatedMessage });

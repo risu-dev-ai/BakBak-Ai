@@ -124,6 +124,104 @@ export default function App() {
     }
   }, [isAuthenticated, token])
 
+  // Register for push notifications when authenticated
+  useEffect(() => {
+    if (!isAuthenticated || !token) return
+
+    let pushListeners = []
+
+    const setupPushNotifications = async () => {
+      try {
+        const { PushNotifications } = await import('@capacitor/push-notifications')
+        
+        let perm = await PushNotifications.checkPermissions()
+        if (perm.receive === 'prompt') {
+          perm = await PushNotifications.requestPermissions()
+        }
+
+        if (perm.receive === 'granted') {
+          await PushNotifications.register()
+
+          const regListener = await PushNotifications.addListener('registration', async (t) => {
+            console.log('📱 Push token registered:', t.value)
+            try {
+              const { default: api } = await import('@/lib/axios')
+              await api.post('/users/fcm-token', { fcmToken: t.value })
+            } catch (err) {
+              console.warn('Failed to upload FCM token to backend:', err.message)
+            }
+          })
+          pushListeners.push(regListener)
+
+          const regErrListener = await PushNotifications.addListener('registrationError', (err) => {
+            console.error('Push registration error:', err)
+          })
+          pushListeners.push(regErrListener)
+
+          const recListener = await PushNotifications.addListener('pushNotificationReceived', async (notification) => {
+            console.log('📩 Push notification received:', notification)
+            const { data } = notification
+            if (data && data.type === 'call' && data.offer) {
+              // Trigger incoming call UI
+              window.__bakbak_incoming_offer = JSON.parse(data.offer)
+              const useCallStore = (await import('@/store/callStore')).default
+              useCallStore.getState().receiveCall(
+                data.from,
+                data.fromName,
+                data.fromAvatar,
+                data.callType
+              )
+            }
+          })
+          pushListeners.push(recListener)
+
+          const actListener = await PushNotifications.addListener('pushNotificationActionPerformed', async (action) => {
+            console.log('⚡ Push notification action performed:', action)
+            const { actionId, notification } = action
+            const data = notification.data
+
+            if (data && data.type === 'call' && data.offer) {
+              const offer = JSON.parse(data.offer)
+              if (actionId === 'accept') {
+                window.__bakbak_incoming_offer = offer
+                window.__bakbak_auto_accept_call = true
+                
+                const useCallStore = (await import('@/store/callStore')).default
+                useCallStore.getState().receiveCall(
+                  data.from,
+                  data.fromName,
+                  data.fromAvatar,
+                  data.callType
+                )
+              } else if (actionId === 'decline') {
+                const { getSocket } = await import('@/lib/socket')
+                const socket = getSocket()
+                if (socket) {
+                  socket.emit('call:reject', { to: data.from })
+                }
+                const useCallStore = (await import('@/store/callStore')).default
+                useCallStore.getState().resetCall()
+              }
+            }
+          })
+          pushListeners.push(actListener)
+        }
+      } catch (err) {
+        console.warn('Push Notifications registration failed or not supported in this client:', err)
+      }
+    }
+
+    setupPushNotifications()
+
+    return () => {
+      pushListeners.forEach(listener => {
+        if (listener && typeof listener.remove === 'function') {
+          listener.remove()
+        }
+      })
+    }
+  }, [isAuthenticated, token])
+
   // Initialize notifications channel and action handlers on boot
   useEffect(() => {
     const setupNotificationChannel = async () => {

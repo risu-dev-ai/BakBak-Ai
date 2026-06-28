@@ -211,6 +211,14 @@ export default function CallOverlay() {
   // ── Accept incoming call ───────────────────────────────────
   const handleAccept = async () => {
     try {
+      const { requestCallPermissions } = await import('@/lib/webrtc')
+      const hasPerms = await requestCallPermissions(callType)
+      if (!hasPerms) {
+        alert('Microphone and Camera permissions are required to accept calls.')
+        handleEndCall()
+        return
+      }
+
       const socket = getSocket()
       const stream = await getUserMedia(callType)
       setLocalStream(stream)

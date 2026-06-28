@@ -17,6 +17,7 @@ const {
   savePublicKey,
   getBlockedUsers,
   requestProfileUpdateOTP,
+  saveFcmToken,
 } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
 const { uploadAvatar: avatarUpload } = require('../middleware/uploadMiddleware');
@@ -48,6 +49,9 @@ router.put('/change-password', changePassword);
 
 // PUT  /api/v1/users/public-key  — store E2EE public key (Phase 4)
 router.put('/public-key', savePublicKey);
+
+// POST /api/v1/users/fcm-token   — register device push token
+router.post('/fcm-token', saveFcmToken);
 
 // ── User lookup by ID ─────────────────────────────────────────
 // GET  /api/v1/users/:id

@@ -121,6 +121,11 @@ const UserSchema = new mongoose.Schema(
         ref: 'Message',
       },
     ],
+    // ── Push Notifications ───────────────────────────────────
+    fcmToken: {
+      type: String,
+      default: '',
+    },
   },
   {
     timestamps: true, // Adds createdAt and updatedAt automatically

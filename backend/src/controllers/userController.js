@@ -315,6 +315,18 @@ const getBlockedUsers = async (req, res, next) => {
   }
 };
 
+// ── SAVE FCM TOKEN ─────────────────────────────────────────────
+// POST /api/v1/users/fcm-token
+const saveFcmToken = async (req, res, next) => {
+  try {
+    const { fcmToken } = req.body;
+    await User.findByIdAndUpdate(req.user._id, { fcmToken: fcmToken || '' });
+    return sendSuccess(res, 200, 'FCM token updated successfully.');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getUserProfile,
   updateProfile,
@@ -327,4 +339,5 @@ module.exports = {
   savePublicKey,
   getBlockedUsers,
   requestProfileUpdateOTP,
+  saveFcmToken,
 };

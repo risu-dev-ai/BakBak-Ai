@@ -183,3 +183,23 @@ export function getRemoteStream() {
 export function getPeerConnection() {
   return peerConnection
 }
+
+/**
+ * Request necessary permissions (CAMERA and/or MICROPHONE) natively for WebRTC calls.
+ * @param {'audio' | 'video'} callType
+ * @returns {Promise<boolean>}
+ */
+export async function requestCallPermissions(callType = 'audio') {
+  try {
+    const constraints = {
+      audio: true,
+      video: callType === 'video'
+    }
+    const tempStream = await navigator.mediaDevices.getUserMedia(constraints)
+    tempStream.getTracks().forEach(track => track.stop())
+    return true
+  } catch (err) {
+    console.warn('Native calling permissions request failed:', err)
+    return false
+  }
+}
