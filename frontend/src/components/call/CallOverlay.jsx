@@ -82,6 +82,14 @@ export default function CallOverlay() {
                 id: new Date().getTime(),
                 schedule: { at: new Date(Date.now() + 100) },
                 channelId: 'bakbak-chat-messages',
+                actionTypeId: 'CALL_ACTIONS',
+                extra: {
+                  from,
+                  fromName,
+                  fromAvatar,
+                  callType: ct,
+                  offer
+                }
               },
             ],
           })
@@ -132,6 +140,15 @@ export default function CallOverlay() {
     const store = useCallStore.getState()
     if (localVideoRef.current && store.localStream) {
       localVideoRef.current.srcObject = store.localStream
+    }
+  }, [callStatus])
+
+  // Auto-accept call if triggered from notification tray action
+  useEffect(() => {
+    if (callStatus === 'incoming' && window.__bakbak_auto_accept_call) {
+      window.__bakbak_auto_accept_call = false
+      console.log('🔄 Auto-accepting call from notification tray action...')
+      handleAccept()
     }
   }, [callStatus])
 

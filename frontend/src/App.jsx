@@ -124,7 +124,7 @@ export default function App() {
     }
   }, [isAuthenticated, token])
 
-  // Initialize notifications channel on boot
+  // Initialize notifications channel and action handlers on boot
   useEffect(() => {
     const setupNotificationChannel = async () => {
       try {
@@ -143,6 +143,28 @@ export default function App() {
           vibration: true,
           lights: true
         })
+
+        // Register action buttons (Accept/Decline) for call notifications
+        await LocalNotifications.registerActionTypes({
+          types: [
+            {
+              id: 'CALL_ACTIONS',
+              actions: [
+                {
+                  id: 'accept',
+                  title: 'Accept',
+                  foreground: true,
+                },
+                {
+                  id: 'decline',
+                  title: 'Decline',
+                  destructive: true,
+                  foreground: true,
+                }
+              ]
+            }
+          ]
+        })
       } catch (err) {
         console.warn('Local notifications channel creation failed:', err)
       }
@@ -151,6 +173,44 @@ export default function App() {
     setupNotificationChannel()
     initTheme()
     import('@/services/syncQueue').then(({ syncQueue }) => syncQueue.init())
+
+    // Listen for notification action performance (Accept/Decline button clicks)
+    const actionListener = LocalNotifications.addListener(
+      'localNotificationActionPerformed',
+      async (notificationAction) => {
+        const { actionId, notification } = notificationAction
+        const extra = notification.extra
+
+        if (!extra || !extra.from) return
+
+        if (actionId === 'accept') {
+          console.log('📞 Accept call action triggered from notification tray:', extra)
+          window.__bakbak_incoming_offer = extra.offer
+          window.__bakbak_auto_accept_call = true
+          
+          const useCallStore = (await import('@/store/callStore')).default
+          useCallStore.getState().receiveCall(
+            extra.from,
+            extra.fromName,
+            extra.fromAvatar,
+            extra.callType
+          )
+        } else if (actionId === 'decline') {
+          console.log('❌ Decline call action triggered from notification tray:', extra)
+          const { getSocket } = await import('@/lib/socket')
+          const socket = getSocket()
+          if (socket) {
+            socket.emit('call:reject', { to: extra.from })
+          }
+          const useCallStore = (await import('@/store/callStore')).default
+          useCallStore.getState().resetCall()
+        }
+      }
+    )
+
+    return () => {
+      actionListener.then((l) => l.remove())
+    }
   }, [])
 
   useEffect(() => {
