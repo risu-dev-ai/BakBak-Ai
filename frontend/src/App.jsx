@@ -197,7 +197,7 @@ export default function App() {
 
       <Routes>
         {/* Public */}
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<GuestRoute><LandingPage /></GuestRoute>} />
 
         {/* Auth */}
         <Route path="/login"    element={<GuestRoute><LoginPage /></GuestRoute>} />
