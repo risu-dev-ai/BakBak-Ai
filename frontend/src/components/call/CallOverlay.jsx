@@ -28,6 +28,8 @@ export default function CallOverlay() {
     remoteUserId,
     remoteUserName,
     remoteUserAvatar,
+    localStream,
+    remoteStream,
     isMuted,
     isCameraOff,
     callStartTime,
@@ -140,11 +142,17 @@ export default function CallOverlay() {
 
   // Attach local stream to video element
   useEffect(() => {
-    const store = useCallStore.getState()
-    if (localVideoRef.current && store.localStream) {
-      localVideoRef.current.srcObject = store.localStream
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream
     }
-  }, [callStatus])
+  }, [callStatus, localStream])
+
+  // Attach remote stream to video/audio element
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream
+    }
+  }, [callStatus, remoteStream])
 
   // Auto-accept call if triggered from notification tray action
   useEffect(() => {

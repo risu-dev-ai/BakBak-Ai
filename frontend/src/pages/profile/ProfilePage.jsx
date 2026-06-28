@@ -255,7 +255,7 @@ export default function ProfilePage() {
   const statusText = user?.statusText || 'Hey there! I am using BakBak Chat.'
 
   return (
-    <div className="min-h-screen bg-wa-bg page-with-nav relative overflow-hidden">
+    <div className="h-screen overflow-y-auto bg-wa-bg page-with-nav relative">
       {/* Background glow effects */}
       <div className="absolute top-[-10%] left-[-10%] w-[55%] h-[55%] rounded-full bg-gradient-to-br from-primary-500/10 to-transparent blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[55%] h-[55%] rounded-full bg-gradient-to-br from-wa-blue/10 to-transparent blur-[120px] pointer-events-none" />

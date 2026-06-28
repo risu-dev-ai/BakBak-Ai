@@ -54,13 +54,13 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-wa-bg text-white page-with-nav relative overflow-hidden">
+    <div className="h-screen overflow-y-auto bg-wa-bg text-white page-with-nav relative">
       {/* Background glow effects */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-gradient-to-br from-primary-500/10 to-transparent blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-gradient-to-br from-wa-blue/10 to-transparent blur-[120px] pointer-events-none" />
 
       {/* Header */}
-      <div className="bg-wa-teal/60 backdrop-blur-xl px-4 pt-4 pb-3 border-b border-white/5 flex-shrink-0 z-10 sticky top-0">
+      <div className="bg-wa-teal/60 backdrop-blur-xl px-4 pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-3 border-b border-white/5 flex-shrink-0 z-10 sticky top-0">
         <h1 className="text-xl font-bold font-display tracking-wide">Settings</h1>
       </div>
 

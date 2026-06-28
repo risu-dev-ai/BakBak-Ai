@@ -53,8 +53,7 @@
     min-height: 100%;
     min-height: 100dvh; /* dynamic viewport height for mobile keyboards */
     -webkit-overflow-scrolling: touch;
-    /* Safe area padding for notched devices */
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+    padding: 0;
   }
 
   #root {
@@ -86,7 +85,9 @@
   /* WhatsApp-style header bar */
   .wa-header {
     background-color: var(--wa-header);
-    @apply backdrop-blur-xl border-b border-white/5 text-white px-4 py-3 flex items-center shadow-wa;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+    padding-bottom: 0.75rem;
+    @apply backdrop-blur-xl border-b border-white/5 text-white px-4 flex items-center shadow-wa;
   }
 
   /* Input field (WhatsApp style) */
