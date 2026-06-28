@@ -15,6 +15,7 @@ import BottomNav from '@/components/layout/BottomNav'
 import { connectSocket, getSocket } from '@/lib/socket'
 import { LocalNotifications } from '@capacitor/local-notifications'
 import { initTheme } from '@/lib/theme'
+import { Capacitor } from '@capacitor/core'
 
 // ── Lazy-load pages ───────────────────────────────────────────
 const LandingPage    = lazy(() => import('@/pages/LandingPage'))
@@ -70,33 +71,42 @@ export default function App() {
 
   // Hardware Back Button Listener (Android)
   useEffect(() => {
-    const handleBackButton = () => {
-      // Dispatches a custom event to let active pages handle it first
-      const backEvent = new CustomEvent('appBackButton', { cancelable: true })
-      window.dispatchEvent(backEvent)
+    if (!Capacitor.isNativePlatform()) return
 
-      if (backEvent.defaultPrevented) {
-        // Handled by active page/modal
-        return
+    let listener = null
+    try {
+      const handleBackButton = () => {
+        // Dispatches a custom event to let active pages handle it first
+        const backEvent = new CustomEvent('appBackButton', { cancelable: true })
+        window.dispatchEvent(backEvent)
+
+        if (backEvent.defaultPrevented) {
+          // Handled by active page/modal
+          return
+        }
+
+        // If we are at the root or main tabs, exit the app
+        if (
+          location.pathname === '/' ||
+          location.pathname === '/login' ||
+          location.pathname === '/chat'
+        ) {
+          CapApp.exitApp()
+        } else {
+          // Otherwise, navigate back in history
+          navigate(-1)
+        }
       }
 
-      // If we are at the root or main tabs, exit the app
-      if (
-        location.pathname === '/' ||
-        location.pathname === '/login' ||
-        location.pathname === '/chat'
-      ) {
-        CapApp.exitApp()
-      } else {
-        // Otherwise, navigate back in history
-        navigate(-1)
-      }
+      listener = CapApp.addListener('backButton', handleBackButton)
+    } catch (err) {
+      console.error('Failed to bind hardware back button:', err)
     }
 
-    const listener = CapApp.addListener('backButton', handleBackButton)
-
     return () => {
-      listener.then((l) => l.remove())
+      if (listener) {
+        listener.then((l) => l.remove()).catch(e => console.error(e))
+      }
     }
   }, [location.pathname, navigate])
 
@@ -117,10 +127,19 @@ export default function App() {
       }
     }
 
-    const listener = CapApp.addListener('appStateChange', handleStateChange)
+    let listener = null
+    if (Capacitor.isNativePlatform()) {
+      try {
+        listener = CapApp.addListener('appStateChange', handleStateChange)
+      } catch (err) {
+        console.error('Failed to bind appStateChange listener:', err)
+      }
+    }
 
     return () => {
-      listener.then((l) => l.remove())
+      if (listener) {
+        listener.then((l) => l.remove()).catch(e => console.error(e))
+      }
     }
   }, [isAuthenticated, token])
 
@@ -131,6 +150,16 @@ export default function App() {
     let pushListeners = []
 
     const setupPushNotifications = async () => {
+      if (!Capacitor.isNativePlatform()) {
+        console.log('Push notifications (FCM) are only available on native platforms.')
+        return
+      }
+
+      if (import.meta.env.VITE_ENABLE_FCM !== 'true' && import.meta.env.VITE_ENABLE_FCM !== true) {
+        console.log('Push notifications (FCM) are disabled via VITE_ENABLE_FCM.')
+        return
+      }
+
       try {
         const { PushNotifications } = await import('@capacitor/push-notifications')
         
@@ -216,7 +245,7 @@ export default function App() {
     return () => {
       pushListeners.forEach(listener => {
         if (listener && typeof listener.remove === 'function') {
-          listener.remove()
+          listener.remove().catch(e => console.error(e))
         }
       })
     }
@@ -225,6 +254,7 @@ export default function App() {
   // Initialize notifications channel and action handlers on boot
   useEffect(() => {
     const setupNotificationChannel = async () => {
+      if (!Capacitor.isNativePlatform()) return
       try {
         const perm = await LocalNotifications.checkPermissions()
         if (perm.display === 'prompt') {
@@ -273,41 +303,50 @@ export default function App() {
     import('@/services/syncQueue').then(({ syncQueue }) => syncQueue.init())
 
     // Listen for notification action performance (Accept/Decline button clicks)
-    const actionListener = LocalNotifications.addListener(
-      'localNotificationActionPerformed',
-      async (notificationAction) => {
-        const { actionId, notification } = notificationAction
-        const extra = notification.extra
+    let actionListener = null
+    if (Capacitor.isNativePlatform()) {
+      try {
+        actionListener = LocalNotifications.addListener(
+          'localNotificationActionPerformed',
+          async (notificationAction) => {
+            const { actionId, notification } = notificationAction
+            const extra = notification.extra
 
-        if (!extra || !extra.from) return
+            if (!extra || !extra.from) return
 
-        if (actionId === 'accept') {
-          console.log('📞 Accept call action triggered from notification tray:', extra)
-          window.__bakbak_incoming_offer = extra.offer
-          window.__bakbak_auto_accept_call = true
-          
-          const useCallStore = (await import('@/store/callStore')).default
-          useCallStore.getState().receiveCall(
-            extra.from,
-            extra.fromName,
-            extra.fromAvatar,
-            extra.callType
-          )
-        } else if (actionId === 'decline') {
-          console.log('❌ Decline call action triggered from notification tray:', extra)
-          const { getSocket } = await import('@/lib/socket')
-          const socket = getSocket()
-          if (socket) {
-            socket.emit('call:reject', { to: extra.from })
+            if (actionId === 'accept') {
+              console.log('📞 Accept call action triggered from notification tray:', extra)
+              window.__bakbak_incoming_offer = extra.offer
+              window.__bakbak_auto_accept_call = true
+              
+              const useCallStore = (await import('@/store/callStore')).default
+              useCallStore.getState().receiveCall(
+                extra.from,
+                extra.fromName,
+                extra.fromAvatar,
+                extra.callType
+              )
+            } else if (actionId === 'decline') {
+              console.log('❌ Decline call action triggered from notification tray:', extra)
+              const { getSocket } = await import('@/lib/socket')
+              const socket = getSocket()
+              if (socket) {
+                socket.emit('call:reject', { to: extra.from })
+              }
+              const useCallStore = (await import('@/store/callStore')).default
+              useCallStore.getState().resetCall()
+            }
           }
-          const useCallStore = (await import('@/store/callStore')).default
-          useCallStore.getState().resetCall()
-        }
+        )
+      } catch (err) {
+        console.error('Failed to listen to local notification action:', err)
       }
-    )
+    }
 
     return () => {
-      actionListener.then((l) => l.remove())
+      if (actionListener) {
+        actionListener.then((l) => l.remove()).catch(e => console.error(e))
+      }
     }
   }, [])
 

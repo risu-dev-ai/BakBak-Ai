@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import useCallStore from '@/store/callStore'
 import { getSocket } from '@/lib/socket'
 import api from '@/lib/axios'
+import { Capacitor } from '@capacitor/core'
 import {
   getUserMedia,
   createPeerConnection,
@@ -67,35 +68,37 @@ export default function CallOverlay() {
       window.__bakbak_incoming_offer = offer
       receiveCall(from, fromName, fromAvatar, ct)
       
-      try {
-        const { LocalNotifications } = await import('@capacitor/local-notifications')
-        let permStatus = await LocalNotifications.checkPermissions()
-        if (permStatus.display === 'prompt') {
-          permStatus = await LocalNotifications.requestPermissions()
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const { LocalNotifications } = await import('@capacitor/local-notifications')
+          let permStatus = await LocalNotifications.checkPermissions()
+          if (permStatus.display === 'prompt') {
+            permStatus = await LocalNotifications.requestPermissions()
+          }
+          if (permStatus.display === 'granted') {
+            await LocalNotifications.schedule({
+              notifications: [
+                {
+                  title: 'Incoming Call',
+                  body: `${fromName || 'Someone'} is calling you`,
+                  id: new Date().getTime(),
+                  schedule: { at: new Date(Date.now() + 100) },
+                  channelId: 'bakbak-chat-messages',
+                  actionTypeId: 'CALL_ACTIONS',
+                  extra: {
+                    from,
+                    fromName,
+                    fromAvatar,
+                    callType: ct,
+                    offer
+                  }
+                },
+              ],
+            })
+          }
+        } catch (err) {
+          console.warn('Local Notifications not available:', err)
         }
-        if (permStatus.display === 'granted') {
-          await LocalNotifications.schedule({
-            notifications: [
-              {
-                title: 'Incoming Call',
-                body: `${fromName || 'Someone'} is calling you`,
-                id: new Date().getTime(),
-                schedule: { at: new Date(Date.now() + 100) },
-                channelId: 'bakbak-chat-messages',
-                actionTypeId: 'CALL_ACTIONS',
-                extra: {
-                  from,
-                  fromName,
-                  fromAvatar,
-                  callType: ct,
-                  offer
-                }
-              },
-            ],
-          })
-        }
-      } catch (err) {
-        console.warn('Local Notifications not available:', err)
       }
     }
 
