@@ -170,6 +170,12 @@ const MessageSchema = new mongoose.Schema(
       type: String,
       enum: ['everyone', 'self'],
     },
+    hiddenFor: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
 
     // ── Starred ───────────────────────────────────────────────
     starredBy: [

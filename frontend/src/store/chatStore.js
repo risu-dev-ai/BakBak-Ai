@@ -194,23 +194,31 @@ const useChatStore = create((set, get) => ({
       throw error
     }
   },
-
   deleteMessage: async (messageId, deleteType = 'everyone') => {
     try {
       const response = await chatService.deleteMessage(messageId, deleteType)
       if (response.success) {
         const activeChat = get().activeChat
         if (activeChat) {
-          set((state) => ({
-            messages: {
-              ...state.messages,
-              [activeChat._id]: (state.messages[activeChat._id] || []).map((m) =>
-                m._id === messageId
-                  ? { ...m, isDeleted: true, deleteType, encryptedContent: [], media: null }
+          set((state) => {
+            const currentMsgs = state.messages[activeChat._id] || []
+            let updatedMsgs
+            if (deleteType === 'self') {
+              updatedMsgs = currentMsgs.filter(m => m._id !== messageId)
+            } else {
+              updatedMsgs = currentMsgs.map(m => 
+                m._id === messageId 
+                  ? { ...m, isDeleted: true, deleteType, encryptedContent: [], media: null } 
                   : m
-              ),
-            },
-          }))
+              )
+            }
+            return {
+              messages: {
+                ...state.messages,
+                [activeChat._id]: updatedMsgs
+              }
+            }
+          })
         }
       }
     } catch (error) {

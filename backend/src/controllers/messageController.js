@@ -123,7 +123,10 @@ exports.getChatMessages = async (req, res, next) => {
     }
 
     // Build query
-    const query = { chat: chatId };
+    const query = { 
+      chat: chatId,
+      hiddenFor: { $ne: currentUserId }
+    };
     if (before) {
       query.createdAt = { $lt: new Date(before) };
     }
@@ -185,11 +188,16 @@ exports.deleteMessage = async (req, res, next) => {
           chatId: message.chat
         });
       }
+    } else if (deleteType === 'self') {
+      if (!message.hiddenFor) {
+        message.hiddenFor = [];
+      }
+      if (!message.hiddenFor.includes(currentUserId)) {
+        message.hiddenFor.push(currentUserId);
+      }
+      await message.save();
     } else {
-      // 'self' deletion (not globally deleting it, just tagging/hiding for this user)
-      // For simplicity, we'll implement standard deletion here.
-      // (Optional: add a 'hiddenFor' array of UserIds to schema)
-      return res.status(400).json({ success: false, message: 'Delete type "self" is not implemented in this version.' });
+      return res.status(400).json({ success: false, message: 'Invalid delete type.' });
     }
 
     res.status(200).json({ success: true, data: message });

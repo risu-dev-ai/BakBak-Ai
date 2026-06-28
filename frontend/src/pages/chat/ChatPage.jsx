@@ -318,13 +318,13 @@ export default function ChatPage() {
 
   // ── Edit/Delete Message Context Handlers ──────────────────────
   const handleMessageClick = (msg, isSent) => {
-    if (!isSent || msg.isDeleted) return
+    if (msg.isDeleted) return
     setSelectedMessage(msg)
   }
 
-  const handleDeleteMessage = () => {
+  const handleDeleteMessage = (deleteType = 'everyone') => {
     if (selectedMessage) {
-      deleteMessage(selectedMessage._id, 'everyone')
+      deleteMessage(selectedMessage._id, deleteType)
       setSelectedMessage(null)
     }
   }
@@ -852,8 +852,8 @@ export default function ChatPage() {
                 className={`flex ${isSent ? 'justify-end' : 'justify-start'} animate-fade-in relative`}
               >
                 <div 
-                  className={isSent ? 'bubble-sent cursor-pointer' : 'bubble-received'}
-                  onClick={() => handleMessageClick(msg, isSent)}
+                  className={isSent ? 'bubble-sent cursor-pointer' : 'bubble-received cursor-pointer'}
+                  onDoubleClick={() => handleMessageClick(msg, isSent)}
                 >
                   {activeChat.chatType === 'group' && !isSent && (
                     <p className="text-[11px] font-bold text-primary-500 mb-0.5">
@@ -885,14 +885,44 @@ export default function ChatPage() {
                   </div>
                 </div>
 
+                {/* Overlay backdrop to dismiss menu on click outside */}
+                {selectedMessage?._id === msg._id && (
+                  <div 
+                    className="fixed inset-0 z-20 cursor-default" 
+                    onClick={() => setSelectedMessage(null)}
+                  />
+                )}
+
                 {/* Edit/Delete Context Menu */}
-                {selectedMessage?._id === msg._id && isSent && !msg.isDeleted && (
-                  <div className="absolute top-0 right-0 -mt-10 mr-4 bg-[#202c33] rounded-lg shadow-xl border border-white/10 flex flex-col z-10 overflow-hidden">
-                    <button onClick={handleEditMessageClick} className="px-4 py-2 text-xs text-white/90 hover:bg-white/5 text-left border-b border-white/5">
-                      ✏️ Edit
-                    </button>
-                    <button onClick={handleDeleteMessage} className="px-4 py-2 text-xs text-red-400 hover:bg-white/5 text-left">
-                      🗑️ Delete for everyone
+                {selectedMessage?._id === msg._id && !msg.isDeleted && (
+                  <div 
+                    className={`absolute top-0 -mt-12 bg-[#202c33] rounded-xl shadow-2xl border border-white/10 flex flex-col z-30 overflow-hidden min-w-[150px] ${
+                      isSent ? 'right-0 mr-4' : 'left-0 ml-4'
+                    }`}
+                  >
+                    {isSent && msg.messageType === 'text' && (
+                      <button 
+                        onClick={handleEditMessageClick} 
+                        className="px-4 py-2.5 text-xs text-white/90 hover:bg-white/5 text-left border-b border-white/5 flex items-center gap-2"
+                      >
+                        <span>✏️</span> Edit
+                      </button>
+                    )}
+                    
+                    {isSent && (
+                      <button 
+                        onClick={() => handleDeleteMessage('everyone')} 
+                        className="px-4 py-2.5 text-xs text-rose-400 hover:bg-white/5 text-left border-b border-white/5 flex items-center gap-2"
+                      >
+                        <span>🗑️</span> Delete for Everyone
+                      </button>
+                    )}
+                    
+                    <button 
+                      onClick={() => handleDeleteMessage('self')} 
+                      className="px-4 py-2.5 text-xs text-amber-400 hover:bg-white/5 text-left flex items-center gap-2"
+                    >
+                      <span>❌</span> Delete Only for Me
                     </button>
                   </div>
                 )}

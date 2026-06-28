@@ -13,6 +13,7 @@ const ICE_SERVERS = [
 let peerConnection = null
 let localStream = null
 let remoteStream = null
+let pendingCandidates = []
 
 /**
  * Get user media (camera and/or microphone)
@@ -92,6 +93,22 @@ export async function createOffer() {
 }
 
 /**
+ * Helper to flush queued candidates after setRemoteDescription
+ */
+async function flushPendingCandidates() {
+  if (!peerConnection || !peerConnection.remoteDescription) return
+  const candidates = [...pendingCandidates]
+  pendingCandidates = []
+  for (const candidate of candidates) {
+    try {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+    } catch (err) {
+      console.warn('Failed to add queued ICE candidate:', err)
+    }
+  }
+}
+
+/**
  * Create an SDP answer (callee side)
  * @param {RTCSessionDescriptionInit} offer
  * @returns {RTCSessionDescriptionInit}
@@ -99,6 +116,7 @@ export async function createOffer() {
 export async function createAnswer(offer) {
   if (!peerConnection) throw new Error('No peer connection')
   await peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
+  await flushPendingCandidates()
   const answer = await peerConnection.createAnswer()
   await peerConnection.setLocalDescription(answer)
   return answer
@@ -111,6 +129,7 @@ export async function createAnswer(offer) {
 export async function setRemoteAnswer(answer) {
   if (!peerConnection) return
   await peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
+  await flushPendingCandidates()
 }
 
 /**
@@ -118,7 +137,10 @@ export async function setRemoteAnswer(answer) {
  * @param {RTCIceCandidateInit} candidate
  */
 export async function addIceCandidate(candidate) {
-  if (!peerConnection) return
+  if (!peerConnection || !peerConnection.remoteDescription) {
+    pendingCandidates.push(candidate)
+    return
+  }
   try {
     await peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
   } catch (err) {
@@ -167,6 +189,7 @@ export function endCall() {
     peerConnection = null
   }
   remoteStream = null
+  pendingCandidates = []
 }
 
 /**
