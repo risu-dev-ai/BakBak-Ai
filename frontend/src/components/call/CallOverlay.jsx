@@ -21,6 +21,7 @@ import {
   toggleCamera,
   endCall as endWebRTC,
 } from '@/lib/webrtc'
+import { startRingtone, stopRingtone } from '@/lib/ringtone'
 
 export default function CallOverlay() {
   const {
@@ -54,6 +55,19 @@ export default function CallOverlay() {
   useEffect(() => {
     console.log('🔄 [CallOverlay] callStatus transitioned to:', callStatus, 'with callType:', callType, 'and remoteUserId:', remoteUserId)
   }, [callStatus, callType, remoteUserId])
+
+  // Play ringtone on incoming call
+  useEffect(() => {
+    if (callStatus === 'incoming') {
+      startRingtone()
+    } else {
+      stopRingtone()
+    }
+
+    return () => {
+      stopRingtone()
+    }
+  }, [callStatus])
 
   // Timer for call duration
   useEffect(() => {
