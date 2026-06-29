@@ -50,6 +50,11 @@ export default function CallOverlay() {
   const remoteVideoRef = useRef(null)
   const [elapsed, setElapsed] = useState('00:00')
 
+  // Log callStatus transitions for diagnostic tracing
+  useEffect(() => {
+    console.log('🔄 [CallOverlay] callStatus transitioned to:', callStatus, 'with callType:', callType, 'and remoteUserId:', remoteUserId)
+  }, [callStatus, callType, remoteUserId])
+
   // Timer for call duration
   useEffect(() => {
     if (callStatus !== 'connected' || !callStartTime) return
@@ -71,6 +76,7 @@ export default function CallOverlay() {
 
     // Incoming call
     const handleIncoming = async ({ from, fromName, fromAvatar, offer, callType: ct }) => {
+      console.log('📞 [CallOverlay] Socket call:incoming received from:', from, 'name:', fromName, 'type:', ct)
       // Store the offer for later use when accepting
       window.__bakbak_incoming_offer = offer
       receiveCall(from, fromName, fromAvatar, ct)
@@ -83,6 +89,7 @@ export default function CallOverlay() {
             permStatus = await LocalNotifications.requestPermissions()
           }
           if (permStatus.display === 'granted') {
+            console.log('📞 [CallOverlay] Scheduling local notification for incoming call')
             await LocalNotifications.schedule({
               notifications: [
                 {
@@ -111,22 +118,35 @@ export default function CallOverlay() {
 
     // Remote answered our call
     const handleAnswer = async ({ answer }) => {
-      await setRemoteAnswer(answer)
-      connectCall()
+      console.log('📞 [CallOverlay] Socket call:answer received')
+      try {
+        await setRemoteAnswer(answer)
+        console.log('📞 [CallOverlay] Remote description set successfully, calling connectCall()')
+        connectCall()
+      } catch (err) {
+        console.error('📞 [CallOverlay] Failed to set remote answer:', err)
+      }
     }
 
     // ICE candidate from remote
     const handleIce = async ({ candidate }) => {
-      await addIceCandidate(candidate)
+      console.log('📞 [CallOverlay] Socket call:ice-candidate received')
+      try {
+        await addIceCandidate(candidate)
+      } catch (err) {
+        console.error('📞 [CallOverlay] Failed to add ICE candidate:', err)
+      }
     }
 
     // Remote ended the call
     const handleEnded = () => {
+      console.log('📞 [CallOverlay] Socket call:ended received')
       handleEndCall()
     }
 
     // Remote rejected the call
     const handleRejected = () => {
+      console.log('📞 [CallOverlay] Socket call:rejected received')
       const logId = useCallStore.getState().currentCallLogId
       if (logId) {
         api.patch(`/calls/${logId}`, { status: 'rejected' }).catch(err => console.warn(err))
@@ -304,9 +324,9 @@ export default function CallOverlay() {
   if (callStatus === 'idle') return null
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center">
+    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999 }}>
       {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0A0516] via-[#0f0a2e] to-[#0A0516]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0A0516] via-[#0f0a2e] to-[#0A0516]" style={{ zIndex: -1 }} />
 
       {/* Remote video (full background for video calls) */}
       {callType === 'video' && callStatus === 'connected' && (
@@ -315,11 +335,12 @@ export default function CallOverlay() {
           autoPlay
           playsInline
           className="absolute inset-0 w-full h-full object-cover"
+          style={{ zIndex: 1 }}
         />
       )}
 
       {/* Content overlay */}
-      <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
+      <div className="relative flex flex-col items-center justify-center w-full h-full" style={{ zIndex: 10 }}>
 
         {/* ── Incoming Call Screen ─────────────────────────── */}
         {callStatus === 'incoming' && (
