@@ -6,7 +6,8 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import useCallStore from '@/store/callStore'
-import { getSocket } from '@/lib/socket'
+import { getSocket, connectSocket } from '@/lib/socket'
+import useAuthStore from '@/store/authStore'
 import api from '@/lib/axios'
 import { Capacitor } from '@capacitor/core'
 import {
@@ -43,6 +44,8 @@ export default function CallOverlay() {
     resetCall,
   } = useCallStore()
 
+  const { isAuthenticated, token } = useAuthStore()
+
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
   const [elapsed, setElapsed] = useState('00:00')
@@ -61,7 +64,9 @@ export default function CallOverlay() {
 
   // Listen for socket events
   useEffect(() => {
-    const socket = getSocket()
+    if (!isAuthenticated || !token) return
+
+    const socket = getSocket() || connectSocket(token)
     if (!socket) return
 
     // Incoming call
@@ -142,7 +147,7 @@ export default function CallOverlay() {
       socket.off('call:ended', handleEnded)
       socket.off('call:rejected', handleRejected)
     }
-  }, [])
+  }, [isAuthenticated, token])
 
   // Attach local stream to video element
   useEffect(() => {

@@ -45,8 +45,29 @@ export async function getUserMedia(callType = 'audio') {
  * @returns {RTCPeerConnection}
  */
 export function createPeerConnection(onIceCandidate, onTrack, iceServers = ICE_SERVERS) {
+  let resolvedServers = iceServers || ICE_SERVERS
+  if (Array.isArray(resolvedServers)) {
+    resolvedServers = [...resolvedServers]
+    const targetStun = 'stun:stun.l.google.com:19302'
+    const index = resolvedServers.findIndex(s => {
+      if (Array.isArray(s.urls)) {
+        return s.urls.includes(targetStun)
+      }
+      return s.urls === targetStun
+    })
+
+    if (index !== 0) {
+      let targetObj = { urls: targetStun }
+      if (index > 0) {
+        targetObj = resolvedServers[index]
+        resolvedServers.splice(index, 1)
+      }
+      resolvedServers.unshift(targetObj)
+    }
+  }
+
   peerConnection = new RTCPeerConnection({
-    iceServers: iceServers || ICE_SERVERS,
+    iceServers: resolvedServers,
   })
 
   // Send ICE candidates to the remote peer via signaling

@@ -73,39 +73,51 @@ export default function App() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return
 
-    let listener = null
-    try {
-      const handleBackButton = () => {
-        // Dispatches a custom event to let active pages handle it first
-        const backEvent = new CustomEvent('appBackButton', { cancelable: true })
-        window.dispatchEvent(backEvent)
+    let active = true
+    let listenerHandle = null
 
-        if (backEvent.defaultPrevented) {
-          // Handled by active page/modal
-          return
+    const init = async () => {
+      try {
+        const handleBackButton = () => {
+          // Dispatches a custom event to let active pages handle it first
+          const backEvent = new CustomEvent('appBackButton', { cancelable: true })
+          window.dispatchEvent(backEvent)
+
+          if (backEvent.defaultPrevented) {
+            // Handled by active page/modal
+            return
+          }
+
+          // If we are at the root or main tabs, exit the app
+          if (
+            location.pathname === '/' ||
+            location.pathname === '/login' ||
+            location.pathname === '/chat'
+          ) {
+            CapApp.exitApp()
+          } else {
+            // Otherwise, navigate back in history
+            navigate(-1)
+          }
         }
 
-        // If we are at the root or main tabs, exit the app
-        if (
-          location.pathname === '/' ||
-          location.pathname === '/login' ||
-          location.pathname === '/chat'
-        ) {
-          CapApp.exitApp()
+        const handle = await CapApp.addListener('backButton', handleBackButton)
+        if (!active) {
+          handle?.remove()
         } else {
-          // Otherwise, navigate back in history
-          navigate(-1)
+          listenerHandle = handle
         }
+      } catch (err) {
+        console.error('Failed to bind hardware back button:', err)
       }
-
-      listener = CapApp.addListener('backButton', handleBackButton)
-    } catch (err) {
-      console.error('Failed to bind hardware back button:', err)
     }
 
+    init()
+
     return () => {
-      if (listener) {
-        listener.then((l) => l.remove()).catch(e => console.error(e))
+      active = false
+      if (listenerHandle) {
+        listenerHandle.remove()
       }
     }
   }, [location.pathname, navigate])
@@ -127,18 +139,30 @@ export default function App() {
       }
     }
 
-    let listener = null
-    if (Capacitor.isNativePlatform()) {
-      try {
-        listener = CapApp.addListener('appStateChange', handleStateChange)
-      } catch (err) {
-        console.error('Failed to bind appStateChange listener:', err)
+    let active = true
+    let listenerHandle = null
+
+    const init = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const handle = await CapApp.addListener('appStateChange', handleStateChange)
+          if (!active) {
+            handle?.remove()
+          } else {
+            listenerHandle = handle
+          }
+        } catch (err) {
+          console.error('Failed to bind appStateChange listener:', err)
+        }
       }
     }
 
+    init()
+
     return () => {
-      if (listener) {
-        listener.then((l) => l.remove()).catch(e => console.error(e))
+      active = false
+      if (listenerHandle) {
+        listenerHandle.remove()
       }
     }
   }, [isAuthenticated, token])
@@ -147,7 +171,8 @@ export default function App() {
   useEffect(() => {
     if (!isAuthenticated || !token) return
 
-    let pushListeners = []
+    let active = true
+    let listenerHandles = []
 
     const setupPushNotifications = async () => {
       if (!Capacitor.isNativePlatform()) {
@@ -169,6 +194,7 @@ export default function App() {
         }
 
         if (perm.receive === 'granted') {
+          if (!active) return
           await PushNotifications.register()
 
           const regListener = await PushNotifications.addListener('registration', async (t) => {
@@ -180,12 +206,20 @@ export default function App() {
               console.warn('Failed to upload FCM token to backend:', err.message)
             }
           })
-          pushListeners.push(regListener)
+          if (!active) {
+            regListener?.remove()
+          } else {
+            listenerHandles.push(regListener)
+          }
 
           const regErrListener = await PushNotifications.addListener('registrationError', (err) => {
             console.error('Push registration error:', err)
           })
-          pushListeners.push(regErrListener)
+          if (!active) {
+            regErrListener?.remove()
+          } else {
+            listenerHandles.push(regErrListener)
+          }
 
           const recListener = await PushNotifications.addListener('pushNotificationReceived', async (notification) => {
             console.log('📩 Push notification received:', notification)
@@ -202,7 +236,11 @@ export default function App() {
               )
             }
           })
-          pushListeners.push(recListener)
+          if (!active) {
+            recListener?.remove()
+          } else {
+            listenerHandles.push(recListener)
+          }
 
           const actListener = await PushNotifications.addListener('pushNotificationActionPerformed', async (action) => {
             console.log('⚡ Push notification action performed:', action)
@@ -233,7 +271,11 @@ export default function App() {
               }
             }
           })
-          pushListeners.push(actListener)
+          if (!active) {
+            actListener?.remove()
+          } else {
+            listenerHandles.push(actListener)
+          }
         }
       } catch (err) {
         console.warn('Push Notifications registration failed or not supported in this client:', err)
@@ -243,9 +285,10 @@ export default function App() {
     setupPushNotifications()
 
     return () => {
-      pushListeners.forEach(listener => {
-        if (listener && typeof listener.remove === 'function') {
-          listener.remove().catch(e => console.error(e))
+      active = false
+      listenerHandles.forEach(handle => {
+        if (handle && typeof handle.remove === 'function') {
+          handle.remove()
         }
       })
     }
@@ -253,6 +296,9 @@ export default function App() {
 
   // Initialize notifications channel and action handlers on boot
   useEffect(() => {
+    let active = true
+    let listenerHandle = null
+
     const setupNotificationChannel = async () => {
       if (!Capacitor.isNativePlatform()) return
       try {
@@ -260,6 +306,7 @@ export default function App() {
         if (perm.display === 'prompt') {
           await LocalNotifications.requestPermissions()
         }
+        if (!active) return
         
         // Create high priority channel for heads-up banners on Android
         await LocalNotifications.createChannel({
@@ -272,6 +319,7 @@ export default function App() {
           lights: true
         })
 
+        if (!active) return
         // Register action buttons (Accept/Decline) for call notifications
         await LocalNotifications.registerActionTypes({
           types: [
@@ -303,49 +351,59 @@ export default function App() {
     import('@/services/syncQueue').then(({ syncQueue }) => syncQueue.init())
 
     // Listen for notification action performance (Accept/Decline button clicks)
-    let actionListener = null
-    if (Capacitor.isNativePlatform()) {
-      try {
-        actionListener = LocalNotifications.addListener(
-          'localNotificationActionPerformed',
-          async (notificationAction) => {
-            const { actionId, notification } = notificationAction
-            const extra = notification.extra
+    const initActionListener = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const handle = await LocalNotifications.addListener(
+            'localNotificationActionPerformed',
+            async (notificationAction) => {
+              const { actionId, notification } = notificationAction
+              const extra = notification.extra
 
-            if (!extra || !extra.from) return
+              if (!extra || !extra.from) return
 
-            if (actionId === 'accept') {
-              console.log('📞 Accept call action triggered from notification tray:', extra)
-              window.__bakbak_incoming_offer = extra.offer
-              window.__bakbak_auto_accept_call = true
-              
-              const useCallStore = (await import('@/store/callStore')).default
-              useCallStore.getState().receiveCall(
-                extra.from,
-                extra.fromName,
-                extra.fromAvatar,
-                extra.callType
-              )
-            } else if (actionId === 'decline') {
-              console.log('❌ Decline call action triggered from notification tray:', extra)
-              const { getSocket } = await import('@/lib/socket')
-              const socket = getSocket()
-              if (socket) {
-                socket.emit('call:reject', { to: extra.from })
+              if (actionId === 'accept') {
+                console.log('📞 Accept call action triggered from notification tray:', extra)
+                window.__bakbak_incoming_offer = extra.offer
+                window.__bakbak_auto_accept_call = true
+                
+                const useCallStore = (await import('@/store/callStore')).default
+                useCallStore.getState().receiveCall(
+                  extra.from,
+                  extra.fromName,
+                  extra.fromAvatar,
+                  extra.callType
+                )
+              } else if (actionId === 'decline') {
+                console.log('❌ Decline call action triggered from notification tray:', extra)
+                const { getSocket } = await import('@/lib/socket')
+                const socket = getSocket()
+                if (socket) {
+                  socket.emit('call:reject', { to: extra.from })
+                }
+                const useCallStore = (await import('@/store/callStore')).default
+                useCallStore.getState().resetCall()
               }
-              const useCallStore = (await import('@/store/callStore')).default
-              useCallStore.getState().resetCall()
             }
+          )
+
+          if (!active) {
+            handle?.remove()
+          } else {
+            listenerHandle = handle
           }
-        )
-      } catch (err) {
-        console.error('Failed to listen to local notification action:', err)
+        } catch (err) {
+          console.error('Failed to listen to local notification action:', err)
+        }
       }
     }
 
+    initActionListener()
+
     return () => {
-      if (actionListener) {
-        actionListener.then((l) => l.remove()).catch(e => console.error(e))
+      active = false
+      if (listenerHandle) {
+        listenerHandle.remove()
       }
     }
   }, [])
