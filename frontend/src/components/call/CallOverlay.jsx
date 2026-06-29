@@ -79,7 +79,7 @@ export default function CallOverlay() {
         try {
           const { LocalNotifications } = await import('@capacitor/local-notifications')
           let permStatus = await LocalNotifications.checkPermissions()
-          if (permStatus.display === 'prompt') {
+          if (permStatus.display !== 'granted') {
             permStatus = await LocalNotifications.requestPermissions()
           }
           if (permStatus.display === 'granted') {

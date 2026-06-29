@@ -312,7 +312,7 @@ const useChatStore = create((set, get) => ({
           const { LocalNotifications } = await import('@capacitor/local-notifications')
           // Check permissions
           let permStatus = await LocalNotifications.checkPermissions()
-          if (permStatus.display === 'prompt') {
+          if (permStatus.display !== 'granted') {
             permStatus = await LocalNotifications.requestPermissions()
           }
           if (permStatus.display === 'granted') {

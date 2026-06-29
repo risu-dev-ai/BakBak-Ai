@@ -13,7 +13,17 @@ let socket = null
  * @param {string} token - JWT token
  */
 export const connectSocket = (token) => {
-  if (socket?.connected) return socket
+  if (socket) {
+    if (socket.auth) {
+      socket.auth.token = token
+    } else {
+      socket.auth = { token }
+    }
+    if (!socket.connected) {
+      socket.connect()
+    }
+    return socket
+  }
 
   socket = io(import.meta.env.VITE_SOCKET_URL || '/', {
     auth: { token },

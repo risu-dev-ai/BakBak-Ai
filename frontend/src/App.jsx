@@ -189,7 +189,7 @@ export default function App() {
         const { PushNotifications } = await import('@capacitor/push-notifications')
         
         let perm = await PushNotifications.checkPermissions()
-        if (perm.receive === 'prompt') {
+        if (perm.receive !== 'granted') {
           perm = await PushNotifications.requestPermissions()
         }
 
@@ -303,7 +303,7 @@ export default function App() {
       if (!Capacitor.isNativePlatform()) return
       try {
         const perm = await LocalNotifications.checkPermissions()
-        if (perm.display === 'prompt') {
+        if (perm.display !== 'granted') {
           await LocalNotifications.requestPermissions()
         }
         if (!active) return
